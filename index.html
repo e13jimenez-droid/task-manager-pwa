@@ -1,0 +1,3722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#d4621a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tasks">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Task Manager</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/js-yaml@4/dist/js-yaml.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f1ed;
+  --bg-alt: #ebe7e1;
+  --surface: #ffffff;
+  --surface-tint: #faf8f5;
+  --ink: #2a2520;
+  --ink-secondary: #6b6258;
+  --ink-muted: #9a9088;
+  --ink-faint: #c4bbb0;
+  --border: #ddd6cc;
+  --border-light: #ebe5dd;
+  --border-strong: #c4b8a8;
+  --accent: #d4621a;
+  --accent-hover: #b85415;
+  --accent-light: #fdf0e6;
+  --accent-bg: #f5e6d8;
+  --red: #c0392b; --red-light: #f9ebea;
+  --orange: #d4621a; --orange-light: #fdf0e6;
+  --yellow: #b7892f; --yellow-light: #faf5e8;
+  --green: #4a7c4c; --green-light: #eef5ef;
+  --blue: #4a6fa5; --blue-light: #ecf1f7;
+  --purple: #4a6fa5; --purple-light: #ecf1f7;
+  --dirty: #b7892f;
+  --shadow-sm: 0 1px 2px rgba(42,37,32,0.04), 0 1px 1px rgba(42,37,32,0.03);
+  --shadow-md: 0 2px 8px rgba(42,37,32,0.06), 0 1px 3px rgba(42,37,32,0.04);
+  --shadow-lg: 0 4px 16px rgba(42,37,32,0.08), 0 2px 6px rgba(42,37,32,0.05);
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 12px; --r-pill: 9999px;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.theme-matrix {
+  --bg: #000000;
+  --bg-alt: #0a0a0a;
+  --surface: #0d0d0d;
+  --surface-tint: #111111;
+  --ink: #00ff41;
+  --ink-secondary: #00cc33;
+  --ink-muted: #008822;
+  --ink-faint: #004411;
+  --border: #003311;
+  --border-light: #001a08;
+  --border-strong: #00ff41;
+  --accent: #00ff41;
+  --accent-hover: #00cc33;
+  --accent-light: #001a08;
+  --accent-bg: #002211;
+  --red: #ff0040; --red-light: #1a0008;
+  --orange: #ff6600; --orange-light: #1a0a00;
+  --yellow: #cccc00; --yellow-light: #1a1a00;
+  --green: #00ff41; --green-light: #001a08;
+  --blue: #00aaff; --blue-light: #001a22;
+  --dirty: #cccc00;
+  --shadow-sm: 0 0 4px rgba(0,255,65,0.08);
+  --shadow-md: 0 0 8px rgba(0,255,65,0.12), 0 0 2px rgba(0,255,65,0.08);
+  --shadow-lg: 0 0 16px rgba(0,255,65,0.15), 0 0 4px rgba(0,255,65,0.10);
+  --font-sans: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.theme-matrix .task-meta-tag { text-shadow: 0 0 4px currentColor; }
+.theme-matrix .task-title { text-shadow: 0 0 2px rgba(0,255,65,0.3); }
+.theme-matrix input:focus, .theme-matrix select:focus, .theme-matrix textarea:focus {
+  box-shadow: 0 0 0 2px rgba(0,255,65,0.2), 0 0 8px rgba(0,255,65,0.15);
+}
+.theme-matrix .btn { background: transparent; }
+.theme-matrix .btn-primary { background: var(--accent); color: #000; }
+.theme-matrix .btn-primary:hover { background: var(--accent-hover); color: #000; }
+.theme-matrix .modal-overlay { background: rgba(0,0,0,0.7); }
+.theme-matrix .task-card.stale { background: #0a0a00; }
+.theme-matrix .task-card.very-stale { background: #0d0800; }
+.theme-matrix .task-card.blocked { background: #0d0008; }
+.theme-matrix .task-card.thread { background: #0d0d08; }
+.theme-matrix .btn-theme { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg); color: var(--ink); line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 24px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg); margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap; gap: 8px;
+}
+.header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn {
+  padding: 7px 14px; border: 1px solid var(--border);
+  border-radius: var(--r-md); background: var(--surface); color: var(--ink-secondary);
+  font-family: var(--font-sans); font-size: 0.82rem; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); color: #fff; }
+.btn-small { padding: 4px 10px; font-size: 0.75rem; }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--red-light); }
+.btn-disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-disabled:hover { background: var(--accent); }
+.dirty-badge {
+  padding: 3px 10px; background: var(--dirty); color: #fff;
+  border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Quick Add */
+.quick-add {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 2px;
+  padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.quick-add-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.quick-add-task-field {
+  flex: 1; min-width: 200px;
+}
+.quick-add input[type="text"] {
+  padding: 10px 14px; border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 0.92rem; font-family: var(--font-sans);
+  color: var(--ink); background: var(--surface-tint); transition: all 0.15s;
+  height: 42px; box-sizing: border-box;
+}
+.quick-add-task-field input[type="text"] {
+  flex: none; width: 100%;
+}
+.quick-add-buttons {
+  display: flex; gap: 8px; align-self: flex-end; margin-top: 2px;
+}
+.quick-add input[type="text"]::placeholder { color: var(--ink-faint); }
+.quick-add input[type="text"]:focus {
+  outline: none; border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.quick-add select {
+  padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 0.82rem; font-family: var(--font-sans);
+  color: var(--ink-secondary); background: var(--surface-tint);
+}
+.quick-add select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.quick-add input[type="date"] {
+  padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 0.82rem; font-family: var(--font-sans);
+  color: var(--ink-secondary); background: var(--surface-tint);
+}
+.quick-add input[type="date"]:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.quick-add-notes input[type="text"] {
+  flex: none; min-width: 0; width: 100%;
+  font-size: 0.85rem; color: var(--ink-secondary);
+}
+.quick-add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.quick-add-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.quick-add-hint {
+  font-size: 0.7rem; color: var(--ink-faint); padding: 6px 16px 8px; margin-bottom: 12px;
+  font-family: var(--font-mono); letter-spacing: 0.01em;
+}
+.quick-add-badge {
+  display: inline-block; padding: 2px 8px; background: var(--accent-light);
+  color: var(--accent); border-radius: var(--r-pill); font-size: 0.7rem; font-weight: 600;
+  font-family: var(--font-mono); margin-left: 6px;
+}
+
+/* View Tabs */
+.view-tabs {
+  display: flex; gap: 0; margin-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.view-tab {
+  padding: 10px 24px; cursor: pointer; font-size: 0.88rem;
+  font-weight: 600; color: var(--ink-muted);
+  border-bottom: 3px solid transparent; transition: all 0.15s;
+  margin-bottom: -2px; letter-spacing: -0.01em;
+}
+.view-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.view-tab:hover { color: var(--ink); }
+
+/* Week View */
+.week-nav {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  padding: 12px 18px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+.week-nav h2 { font-size: 1rem; font-weight: 600; min-width: 100px; font-family: var(--font-mono); color: var(--ink); }
+.week-nav-btn {
+  width: 32px; height: 32px; border: 1px solid var(--border);
+  border-radius: var(--r-md); background: var(--surface); cursor: pointer;
+  font-size: 1rem; display: flex; align-items: center; justify-content: center;
+  color: var(--ink-secondary); transition: all 0.15s;
+}
+.week-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+.week-nav select {
+  padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 0.82rem; font-family: var(--font-sans); color: var(--ink-secondary);
+  background: var(--surface-tint);
+}
+.week-nav select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.week-nav-current { font-weight: 700; color: var(--accent); }
+.week-stats {
+  margin-left: auto; display: flex; gap: 12px; font-size: 0.78rem;
+  color: var(--ink-secondary);
+}
+.week-stat { display: flex; align-items: center; gap: 4px; }
+.week-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Task Card */
+.task-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  margin-bottom: 8px; box-shadow: var(--shadow-sm); transition: all 0.15s;
+}
+.task-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.task-card.stale { border-left: 3px solid var(--yellow); background: #fdfbf7; }
+.task-card.very-stale { border-left: 3px solid var(--orange); background: var(--accent-light); }
+.task-card.thread { border-left: 3px dashed var(--purple); background: var(--purple-light); }
+.task-card.blocked { border-left: 3px solid var(--red); background: var(--red-light); }
+.task-card.done { opacity: 0.5; }
+.task-card.done .task-title { text-decoration: line-through; color: var(--ink-muted); }
+.task-card.delegated { opacity: 0.6; border-left: 3px solid var(--blue, #3498db); }
+.task-card.delegated .task-title { color: var(--ink-muted); }
+.task-card.carryover { border-left: 3px solid var(--orange); background: var(--orange-light); }
+
+/* Carryover section */
+.carryover-section {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: var(--surface-tint);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+}
+.carryover-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 0.85rem; font-weight: 600; color: var(--orange);
+}
+.carryover-count {
+  display: inline-block; padding: 1px 8px; background: var(--orange);
+  color: #fff; border-radius: var(--r-pill); font-size: 0.72rem;
+  font-weight: 600; font-family: var(--font-mono);
+}
+.tag-carryover {
+  background: var(--orange-light); color: var(--orange);
+  font-family: var(--font-mono); font-weight: 600;
+}
+
+/* Delegation tags */
+.tag-delegated { background: var(--blue-light, rgba(52,152,219,0.12)); color: var(--blue, #2980b9); font-weight: 600; }
+.tag-delegated-by { background: var(--accent-light); color: var(--accent); font-weight: 600; }
+
+/* Delegated view */
+.delegated-container { padding: 20px; }
+.delegated-section { margin-bottom: 16px; }
+.delegated-engineer-group { margin-bottom: 20px; }
+.delegated-engineer-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.delegated-engineer-header h4 { font-size: 0.95rem; font-weight: 600; margin: 0; }
+
+/* Delegate field in edit form */
+.delegate-field { display: flex; gap: 6px; align-items: center; }
+.delegate-field input[type="text"] { flex: 1; }
+
+.task-checkbox {
+  width: 20px; height: 20px; border: 2px solid var(--border-strong);
+  border-radius: var(--r-sm); cursor: pointer; flex-shrink: 0;
+  margin-top: 1px; transition: all 0.15s; background: var(--surface);
+}
+.task-checkbox:hover { border-color: var(--accent); }
+.task-checkbox.checked {
+  background: var(--green); border-color: var(--green);
+  display: flex; align-items: center; justify-content: center;
+}
+.task-checkbox.checked::after {
+  content: "\2713"; color: #fff; font-size: 12px; font-weight: bold;
+}
+
+.task-body { flex: 1; min-width: 0; }
+.task-title { font-size: 0.92rem; font-weight: 600; color: var(--ink); margin-bottom: 5px; letter-spacing: -0.01em; }
+.task-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.task-meta-tag {
+  padding: 2px 8px; border-radius: var(--r-pill); font-weight: 600;
+  font-size: 0.7rem; white-space: nowrap; letter-spacing: 0.01em;
+}
+.tag-priority-critical { background: var(--red-light); color: var(--red); }
+.tag-priority-high { background: var(--orange-light); color: var(--orange); }
+.tag-priority-medium { background: var(--yellow-light); color: var(--yellow); }
+.tag-priority-low { background: var(--bg-alt); color: var(--ink-muted); }
+.tag-energy-low { background: var(--green-light); color: var(--green); }
+.tag-energy-medium { background: var(--yellow-light); color: var(--yellow); }
+.tag-energy-high { background: var(--red-light); color: var(--red); }
+.tag-status-blocked { background: var(--red-light); color: var(--red); }
+.tag-status-in_progress { background: var(--blue-light); color: var(--blue); }
+.tag-status-deferred { background: var(--bg-alt); color: var(--ink-muted); }
+.tag-status-thread { background: var(--purple-light); color: var(--purple); }
+.tag-due { background: var(--blue-light); color: var(--blue); font-family: var(--font-mono); }
+.tag-due-overdue { background: var(--red-light); color: var(--red); font-family: var(--font-mono); font-weight: 700; }
+.tag-stale { background: var(--orange-light); color: var(--orange); font-family: var(--font-mono); }
+.tag-very-stale { background: var(--red-light); color: var(--red); font-family: var(--font-mono); }
+.tag-project { background: var(--bg-alt); color: var(--ink-secondary); font-family: var(--font-mono); font-size: 0.68rem; }
+.task-notes { font-size: 0.78rem; color: var(--ink-muted); margin-top: 5px; font-style: italic; }
+.task-actions { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
+.task-action-btn {
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); cursor: pointer; font-size: 0.7rem;
+  color: var(--ink-muted); transition: all 0.15s;
+}
+.task-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.task-action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+.task-action-btn.quick-push { font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600; padding: 4px 6px; }
+.task-action-btn.quick-push:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* Task Edit Form */
+.task-edit {
+  padding: 12px 16px; background: var(--accent-light);
+  border: 1px solid var(--accent); border-radius: var(--r-lg); margin-bottom: 8px;
+}
+.task-edit-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;
+}
+.task-edit-field { display: flex; flex-direction: column; gap: 2px; }
+.task-edit-field label {
+  font-size: 0.7rem; font-weight: 600; color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.task-edit-field input, .task-edit-field select, .task-edit-field textarea {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 0.85rem; font-family: var(--font-sans); background: var(--surface);
+  color: var(--ink);
+}
+.task-edit-field input:focus, .task-edit-field select:focus, .task-edit-field textarea:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.task-edit-full { grid-column: 1 / -1; }
+.task-edit-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Project View */
+.project-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px; margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.project-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+.project-header h2 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.02em; cursor: pointer; }
+.project-chevron {
+  display: inline-block; margin-right: 6px; cursor: pointer;
+  font-size: 0.9rem; color: var(--ink-muted); user-select: none;
+}
+.project-chevron:hover { color: var(--accent); }
+.project-collapse-all-btn { min-width: 130px; }
+.project-add-btn { min-width: 130px; }
+.project-status-badge { display: inline-block; margin-left: 8px; padding: 2px 8px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 4px; background: var(--accent); color: #fff; }
+.project-stats { font-size: 0.8rem; color: var(--ink-muted); font-family: var(--font-mono); }
+.project-notes-display {
+  font-size: 0.8rem; color: var(--ink-muted); margin-bottom: 12px; font-style: italic;
+}
+.project-no-project {
+  padding: 40px 20px; text-align: center; color: var(--ink-muted);
+  background: var(--surface); border: 2px dashed var(--border); border-radius: var(--r-lg);
+}
+
+/* Add Project Form */
+.add-project-form {
+  display: flex; gap: 8px; margin-bottom: 12px; padding: 12px 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  align-items: center; flex-wrap: wrap; box-shadow: var(--shadow-sm);
+}
+.add-project-form input {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 0.85rem; font-family: var(--font-sans); color: var(--ink);
+}
+.add-project-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,98,26,0.12); }
+
+/* Filters */
+.filter-bar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 16px; background: var(--surface-tint);
+  border: 1px solid var(--border-light); border-radius: var(--r-md); margin-bottom: 12px;
+}
+.filter-bar label { font-size: 0.75rem; font-weight: 600; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.filter-bar select {
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 0.78rem; font-family: var(--font-sans); color: var(--ink-secondary); background: var(--surface);
+}
+.filter-bar select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+.filter-bar .filter-btn {
+  padding: 6px 14px; font-size: 0.8rem;
+}
+.filter-spacer { flex: 1; }
+
+/* "What Can I Do" Modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(42,37,32,0.4); display: flex;
+  align-items: center; justify-content: center; z-index: 100;
+}
+.modal {
+  background: var(--surface); border-radius: var(--r-xl); padding: 24px;
+  max-width: 560px; width: 90%; max-height: 80vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal h3 { font-size: 1.2rem; margin-bottom: 4px; font-weight: 600; letter-spacing: -0.02em; }
+.modal p.modal-desc { font-size: 0.85rem; color: var(--ink-muted); margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.suggestion-card {
+  padding: 12px 16px; background: var(--surface-tint); border: 1px solid var(--border);
+  border-radius: var(--r-lg); margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.suggestion-card:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
+.suggestion-card.overdue { border-left-color: var(--danger, #c0392b); background: rgba(192,57,43,0.04); }
+.suggestion-card.overdue:hover { border-color: var(--danger, #c0392b); }
+.suggestion-title { font-size: 0.95rem; font-weight: 600; }
+.suggestion-meta { font-size: 0.75rem; color: var(--ink-muted); margin-top: 2px; font-family: var(--font-mono); }
+.suggestion-empty { text-align: center; padding: 24px; color: var(--ink-muted); font-style: italic; }
+.energy-buttons { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.energy-btn {
+  padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--r-pill);
+  background: var(--surface); cursor: pointer; font-size: 0.82rem; font-weight: 600;
+  color: var(--ink-secondary); transition: all 0.15s;
+}
+.energy-btn:hover { border-color: var(--accent); color: var(--accent); }
+.energy-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Weekly Review */
+.review-section {
+  margin-bottom: 20px;
+}
+.review-section h3 { font-size: 1rem; margin-bottom: 8px; font-weight: 600; }
+.review-count {
+  display: inline-block; padding: 2px 10px; background: var(--accent);
+  color: #fff; border-radius: var(--r-pill); font-size: 0.75rem; font-weight: 600;
+  margin-left: 8px; font-family: var(--font-mono);
+}
+.review-task-actions {
+  margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+}
+.review-task-actions select {
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  font-size: 0.75rem; font-family: var(--font-sans); background: var(--surface); color: var(--ink-secondary);
+}
+.review-task-actions select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center; padding: 60px 20px; background: var(--surface);
+  border: 2px dashed var(--border); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+}
+.empty-state h2 { font-size: 1.2rem; margin-bottom: 8px; font-weight: 600; }
+.empty-state p { color: var(--ink-muted); margin-bottom: 24px; }
+.empty-state .btn-group { display: flex; gap: 12px; justify-content: center; }
+.drop-zone {
+  margin-top: 20px; padding: 40px 20px;
+  border: 2px dashed var(--border); border-radius: var(--r-lg);
+  transition: all 0.2s; cursor: pointer;
+}
+.drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone p { color: var(--ink-muted); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 12px 20px; background: var(--ink); color: #fff;
+  border-radius: var(--r-lg); font-size: 0.875rem; z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.2s ease;
+  display: flex; align-items: center; gap: 12px;
+}
+.toast button {
+  padding: 4px 12px; background: var(--accent); color: #fff;
+  border: none; border-radius: var(--r-sm); cursor: pointer; font-size: 0.8rem;
+  font-weight: 600;
+}
+.toast button:hover { background: var(--accent-hover); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
+
+/* Error */
+.error-msg {
+  padding: 12px 16px; background: var(--red-light); color: var(--red);
+  border: 1px solid var(--red); border-radius: var(--r-md); margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+
+/* Scroll-to-top button */
+.scroll-top-btn {
+  position: fixed; bottom: 24px; right: 24px; z-index: 999;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: var(--shadow-md); transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.scroll-top-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
+.theme-matrix .scroll-top-btn { background: var(--accent); color: #000; }
+.theme-matrix .scroll-top-btn:hover { background: var(--accent-hover); }
+
+/* Stats Bar */
+.stats-bar {
+  display: flex; gap: 16px; padding: 10px 18px;
+  background: var(--surface-tint); border: 1px solid var(--border-light);
+  border-radius: var(--r-md); margin-bottom: 12px; font-size: 0.8rem;
+  flex-wrap: wrap; color: var(--ink-secondary);
+}
+.stats-bar .stat-item { display: flex; align-items: center; gap: 5px; }
+.stats-bar .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Brag Export */
+.brag-export {
+  background: var(--green-light); border: 1px solid var(--green);
+  border-radius: var(--r-lg); padding: 16px; margin-bottom: 12px;
+}
+.brag-export h3 { font-size: 0.95rem; color: var(--green); margin-bottom: 8px; font-weight: 600; }
+.brag-export pre {
+  background: var(--surface); padding: 12px; border-radius: var(--r-md);
+  font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap;
+  border: 1px solid var(--border); font-family: var(--font-mono);
+}
+.brag-export .copy-btn {
+  margin-top: 8px; padding: 4px 12px; background: var(--green); color: #fff;
+  border: none; border-radius: var(--r-sm); cursor: pointer; font-size: 0.8rem; font-weight: 600;
+}
+.brag-export .copy-btn:hover { opacity: 0.9; }
+
+/* Team View */
+.team-container { width: 100%; }
+.team-sub-header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.engineer-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.engineer-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-pill); font-size: 0.8rem; font-weight: 500;
+}
+.engineer-chip-remove {
+  cursor: pointer; color: var(--ink-muted); font-weight: 700; font-size: 0.85rem;
+  border: none; background: none; padding: 0; line-height: 1;
+}
+.engineer-chip-remove:hover { color: var(--red); }
+.sub-tabs {
+  display: flex; gap: 0; margin-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+.sub-tab {
+  padding: 8px 18px; cursor: pointer; font-size: 0.82rem; font-weight: 600;
+  color: var(--ink-muted); border-bottom: 3px solid transparent; transition: all 0.15s;
+  margin-bottom: -2px;
+}
+.sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.sub-tab:hover { color: var(--ink); }
+.team-drop-zone {
+  padding: 60px 20px; border: 2px dashed var(--border); border-radius: var(--r-xl);
+  text-align: center; transition: all 0.2s; cursor: pointer;
+}
+.team-drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
+.team-drop-zone h2 { font-size: 1.2rem; margin-bottom: 8px; font-weight: 600; }
+.team-drop-zone p { color: var(--ink-muted); margin-bottom: 24px; }
+.team-drop-zone .btn-group { display: flex; gap: 12px; justify-content: center; }
+
+/* Workload Table */
+.workload-table {
+  width: 100%; border-collapse: collapse; font-size: 0.82rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.workload-table th, .workload-table td {
+  border: 1px solid var(--border-light); padding: 8px 10px; text-align: center;
+}
+.workload-table th { background: var(--surface-tint); font-weight: 600; font-size: 0.75rem; }
+.workload-table th.engineer-col { text-align: left; min-width: 140px; }
+.workload-table td.engineer-col { text-align: left; font-weight: 600; }
+.workload-table td.week-col-current { background: var(--accent-light); }
+.workload-table th.week-col-current { color: var(--accent); }
+.workload-cell {
+  cursor: pointer; transition: background 0.15s; min-width: 80px;
+}
+.workload-cell:hover { filter: brightness(0.97); }
+.workload-cell-empty { cursor: default; }
+.workload-cell-past { opacity: 0.85; }
+.workload-cell-past:hover { filter: brightness(0.95); }
+.workload-score { font-weight: 700; font-size: 0.92rem; }
+.workload-count { font-size: 0.68rem; color: var(--ink-muted); display: block; }
+.workload-flag { color: var(--red); font-weight: 700; margin-left: 2px; }
+/* Sub-rows for delegated tasks (F8) */
+.workload-sub-row td { background: var(--surface-tint); }
+.workload-sub-row td.engineer-col { font-weight: 400; }
+.workload-legend {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px;
+  font-size: 0.75rem; color: var(--ink-secondary);
+}
+.workload-legend-item { display: flex; align-items: center; gap: 4px; }
+.workload-legend-swatch { width: 14px; height: 14px; border-radius: var(--r-sm); border: 1px solid var(--border); }
+
+/* Drill-down expand row */
+.workload-drill-row td {
+  background: var(--surface-tint) !important;
+  text-align: left !important;
+  padding: 12px 16px !important;
+}
+.workload-drill-row td.drill-red { border-left: 4px solid var(--red); }
+.workload-drill-row td.drill-yellow { border-left: 4px solid var(--yellow); }
+.workload-drill-row td.drill-green { border-left: 4px solid var(--green); }
+.drill-task {
+  display: flex; align-items: flex-start; gap: 8px; padding: 6px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.drill-task:last-child { border-bottom: none; }
+.drill-task-title { font-weight: 600; font-size: 0.85rem; }
+.drill-task-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.drill-task-delegated { background: rgba(52,152,219,0.04); padding: 6px 8px; border-radius: var(--r-sm); margin: 2px 0; }
+
+/* Priority cross-cut */
+.priority-section { margin-bottom: 20px; }
+.priority-section h3 { font-size: 1rem; margin-bottom: 8px; font-weight: 600; }
+.priority-row {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); margin-bottom: 6px;
+}
+.priority-row-title { font-weight: 600; font-size: 0.88rem; flex: 1; }
+.priority-row-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* Team review */
+.team-review-section { margin-bottom: 20px; }
+.team-review-section h3 { font-size: 1rem; margin-bottom: 8px; font-weight: 600; }
+.team-review-entry {
+  padding: 10px 14px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); margin-bottom: 6px; font-size: 0.85rem;
+}
+
+/* Settings modal fields */
+.settings-field { margin-bottom: 16px; }
+.settings-field label {
+  display: block; font-size: 0.75rem; font-weight: 600; color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;
+}
+.settings-field input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 0.9rem; font-family: var(--font-sans);
+  color: var(--ink); background: var(--surface-tint);
+}
+.settings-field input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212,98,26,0.12);
+}
+
+
+
+/* Threads section (F1) — reuses carryover pattern with purple accent */
+.threads-section {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: var(--surface-tint);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+}
+.threads-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 0.85rem; font-weight: 600; color: var(--purple);
+}
+.threads-count {
+  display: inline-block; padding: 1px 8px; background: var(--purple);
+  color: #fff; border-radius: var(--r-pill); font-size: 0.72rem;
+  font-weight: 600; font-family: var(--font-mono);
+}
+
+/* Overdue section (F5) — red accent */
+.overdue-section {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: var(--red-light);
+  border: 1px solid var(--red);
+  border-radius: var(--r-lg);
+}
+.overdue-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  font-size: 0.85rem; font-weight: 600; color: var(--red);
+}
+.overdue-count {
+  display: inline-block; padding: 1px 8px; background: var(--red);
+  color: #fff; border-radius: var(--r-pill); font-size: 0.72rem;
+  font-weight: 600; font-family: var(--font-mono);
+}
+
+/* Week flair badge (F6) */
+.tag-week {
+  background: var(--surface-tint); color: var(--ink-muted);
+  font-family: var(--font-mono); font-weight: 600;
+  border: 1px solid var(--border);
+}
+
+/* Floating Stats HUD (F7) */
+.stats-hud {
+  position: fixed; bottom: 24px; left: 24px; z-index: 999;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-md);
+  font-family: var(--font-mono); font-size: 0.78rem;
+  min-width: 160px; overflow: hidden;
+}
+.stats-hud-collapsed { min-width: auto; }
+.stats-hud-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; cursor: pointer; user-select: none;
+  background: var(--surface-tint); border-bottom: 1px solid var(--border-light);
+  font-weight: 600; color: var(--ink);
+}
+.stats-hud-collapsed .stats-hud-header { border-bottom: none; }
+.stats-hud-week { font-weight: 700; color: var(--accent); }
+.stats-hud-toggle { color: var(--ink-muted); font-size: 0.7rem; }
+.stats-hud-stats { padding: 8px 12px; }
+.stats-hud-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 2px 0; color: var(--ink-secondary);
+}
+.stats-hud-label { color: var(--ink-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.stats-hud-val { font-weight: 600; color: var(--ink); }
+.stats-hud-closed { color: var(--green); }
+.stats-hud-overdue { color: var(--red); }
+.stats-hud-threads { color: var(--purple); }
+
+/* Matrix theme variants for new classes */
+.theme-matrix .threads-section { background: #0d0d08; border-color: var(--purple); }
+.theme-matrix .threads-header { color: var(--purple); text-shadow: 0 0 4px currentColor; }
+.theme-matrix .threads-count { background: var(--purple); color: #000; text-shadow: none; }
+.theme-matrix .overdue-section { background: #0d0008; border-color: var(--red); }
+.theme-matrix .overdue-header { color: var(--red); text-shadow: 0 0 4px currentColor; }
+.theme-matrix .overdue-count { background: var(--red); color: #000; text-shadow: none; }
+.theme-matrix .tag-week { background: #0a0a0a; color: var(--ink-muted); border-color: var(--border); }
+.theme-matrix .stats-hud { background: #0d0d0d; border-color: var(--border); box-shadow: 0 0 8px rgba(0,255,65,0.12); }
+.theme-matrix .stats-hud-header { background: #0a0a0a; border-bottom-color: var(--border); color: var(--ink); }
+.theme-matrix .stats-hud-week { color: var(--accent); text-shadow: 0 0 4px currentColor; }
+.theme-matrix .stats-hud-toggle { color: var(--ink-muted); }
+.theme-matrix .stats-hud-row { color: var(--ink-secondary); }
+.theme-matrix .stats-hud-label { color: var(--ink-muted); }
+.theme-matrix .stats-hud-val { color: var(--ink); text-shadow: 0 0 2px rgba(0,255,65,0.3); }
+.theme-matrix .stats-hud-closed { color: var(--green); }
+.theme-matrix .stats-hud-overdue { color: var(--red); }
+.theme-matrix .stats-hud-threads { color: var(--purple); }
+
+/* Responsive */
+@media (max-width: 700px) {
+  .quick-add-row { flex-direction: column; }
+  .task-edit-grid { grid-template-columns: 1fr 1fr; }
+  .header h1 { font-size: 1.1rem; }
+  .week-stats { width: 100%; }
+  .workload-table { font-size: 0.72rem; }
+  .workload-table th, .workload-table td { padding: 4px 6px; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useCallback, useMemo, useEffect } = React;
+
+// ===== Helpers =====
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+}
+
+// Pacific-time YYYY-MM-DD from a Date object (avoids UTC rollover)
+function localDateStr(d) {
+  return d.toLocaleDateString('en-CA', {timeZone: 'America/Los_Angeles'});
+}
+
+// Pacific-time HH-MM string for save filenames (F4) — hyphen separator, Windows-safe
+function nowTimeStr() {
+  return new Date().toLocaleTimeString('en-CA', {timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false}).replace(':', '-');
+}
+
+// ISO week (YYYY-Www) from a date string — used for week_completed field (F3)
+function isoWeekFromDateStr(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const oneJan = new Date(year, 0, 1);
+  const week = Math.ceil(((d - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function currentISOWeek() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const oneJan = new Date(year, 0, 1);
+  const week = Math.ceil(((d - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function weekOffset(weekStr, delta) {
+  const m = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return weekStr;
+  let year = parseInt(m[1]);
+  let week = parseInt(m[2]) + delta;
+  // Handle week overflow/underflow across year boundary
+  const weeksInYear = (y) => {
+    const jan1 = new Date(y, 0, 1);
+    const dec31 = new Date(y, 11, 31);
+    const w1 = Math.ceil(((jan1 - new Date(y, 0, 1)) / 86400000 + jan1.getDay() + 1) / 7);
+    return 52 + (dec31.getDay() === 4 || jan1.getDay() === 4 ? 1 : 0);
+  };
+  while (week < 1) { year--; week += weeksInYear(year); }
+  while (week > weeksInYear(year)) { week -= weeksInYear(year); year++; }
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+function weekToDateRange(weekStr) {
+  if (!weekStr) return '';
+  const m = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return weekStr;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]);
+  const jan1 = new Date(year, 0, 1);
+  const dayOfWeek = jan1.getDay() || 7;
+  const weekStart = new Date(jan1);
+  weekStart.setDate(jan1.getDate() + (week - 1) * 7 - dayOfWeek + 1);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const fmt = (d) => `${d.getMonth()+1}/${d.getDate()}`;
+  return `${fmt(weekStart)} - ${fmt(weekEnd)}`;
+}
+
+function weekContainsDate(weekStr, dateStr) {
+  if (!weekStr || !dateStr) return false;
+  const m = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return false;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]);
+  const jan1 = new Date(year, 0, 1);
+  const dayOfWeek = jan1.getDay() || 7;
+  const weekStart = new Date(jan1);
+  weekStart.setDate(jan1.getDate() + (week - 1) * 7 - dayOfWeek + 1);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const d = new Date(dateStr + 'T00:00:00');
+  return d >= weekStart && d <= weekEnd;
+}
+
+function shiftWeek(weekStr, delta) {
+  if (!weekStr) return currentISOWeek();
+  const m = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return weekStr;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]) + delta;
+  let y = year, w = week;
+  if (w < 1) { y--; w = 52; }
+  if (w > 52) { y++; w = 1; }
+  return `${y}-W${String(w).padStart(2, '0')}`;
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return 0;
+  const now = new Date(todayStr() + 'T00:00:00');
+  return Math.floor((now - d) / 86400000);
+}
+
+function isOverdue(task) {
+  if (!task.due || task.status === 'done' || task.status === 'deferred' || task.status === 'thread') return false;
+  return task.due < todayStr();
+}
+
+function isStale(task) {
+  if (task.status === 'done' || task.status === 'deferred') return false;
+  const age = daysSince(task.last_touched || task.created);
+  return age > 7;
+}
+
+function isVeryStale(task) {
+  if (task.status === 'done' || task.status === 'deferred') return false;
+  const age = daysSince(task.last_touched || task.created);
+  return age > 14;
+}
+
+function nextTaskId(tasks) {
+  let max = 0;
+  for (const t of tasks) {
+    const match = t.id && t.id.match(/^T(\d+)$/);
+    if (match) max = Math.max(max, parseInt(match[1]));
+  }
+  return `T${String(max + 1).padStart(3, '0')}`;
+}
+
+function nextProjectId(projects) {
+  let max = 0;
+  for (const p of projects) {
+    const match = p.id && p.id.match(/^P(\d+)$/);
+    if (match) max = Math.max(max, parseInt(match[1]));
+  }
+  return `P${String(max + 1).padStart(3, '0')}`;
+}
+
+const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+const PRIORITY_LABELS = { critical: 'CRIT', high: 'HIGH', medium: 'MED', low: 'LOW' };
+const STATUS_LABELS = { open: 'Open', in_progress: 'In Progress', done: 'Done', blocked: 'Blocked', deferred: 'Deferred', thread: 'Thread' };
+const ENERGY_LABELS = { low: 'LOW', medium: 'MED', high: 'HIGH' };
+const CONTEXT_LABELS = { work: 'Work', home: 'Home', errand: 'Errand', anywhere: 'Anywhere' };
+
+function sortTasks(tasks) {
+  return [...tasks].sort((a, b) => {
+    if (a.status === 'done' && b.status !== 'done') return 1;
+    if (a.status !== 'done' && b.status === 'done') return -1;
+    // Threads sort above non-threads (open loops stay visible)
+    const aThread = a.status === 'thread';
+    const bThread = b.status === 'thread';
+    if (aThread && !bThread) return -1;
+    if (!aThread && bThread) return 1;
+    const pa = PRIORITY_ORDER[a.priority] ?? 3;
+    const pb = PRIORITY_ORDER[b.priority] ?? 3;
+    if (pa !== pb) return pa - pb;
+    if (a.due && b.due) return a.due.localeCompare(b.due);
+    if (a.due) return -1;
+    if (b.due) return 1;
+    return 0;
+  });
+}
+
+// ===== Delegation Helpers =====
+function delegationPrefix(owner) {
+  if (!owner) return 'X';
+  // Take first 3 chars of first word, uppercase
+  return owner.trim().split(/[\s-]+/)[0].substring(0, 3).toUpperCase();
+}
+
+function buildDelegationFilename(targetOwner, managerOwner) {
+  const today = todayStr();
+  const time = nowTimeStr();
+  const target = (targetOwner || 'engineer').trim().toLowerCase().replace(/\s+/g, '-');
+  const from = delegationPrefix(managerOwner);
+  return `delegated_${target}_${from}_${today}_${time}.yaml`;
+}
+
+function buildDelegationExport(allData, targetOwner, managerOwner) {
+  // Filter tasks delegated to targetOwner
+  const delegatedTasks = allData.tasks
+    .filter(t => t.delegated_to === targetOwner)
+    .map(t => {
+      // Prefix the ID with manager's initials
+      const prefix = delegationPrefix(managerOwner);
+      const newId = t.id.startsWith(prefix + '-') ? t.id : `${prefix}-${t.id}`;
+      return {
+        ...t,
+        id: newId,
+        delegated_by: managerOwner || 'Manager',
+        delegated_to: null,  // Clear on export — engineer owns it now
+        delegation_date: t.delegation_date || todayStr()
+      };
+    });
+  
+  // Include projects referenced by delegated tasks
+  const projectIds = [...new Set(delegatedTasks.map(t => t.project).filter(Boolean))];
+  const projects = allData.projects.filter(p => projectIds.includes(p.id));
+  
+  return {
+    meta: {
+      created: todayStr(),
+      last_review: null,
+      owner: targetOwner,
+      delegation_batch: true,
+      delegated_by: managerOwner || 'Manager'
+    },
+    projects: projects,
+    tasks: delegatedTasks
+  };
+}
+
+function mergeDelegationBatch(existingData, batchData) {
+  // Merge imported delegation tasks into existing data
+  const existingIds = new Set(existingData.tasks.map(t => t.id));
+  const newTasks = batchData.tasks.filter(t => !existingIds.has(t.id));
+  // Merge projects (add new ones)
+  const existingProjIds = new Set(existingData.projects.map(p => p.id));
+  const newProjects = batchData.projects.filter(p => !existingProjIds.has(p.id));
+  
+  return {
+    ...existingData,
+    projects: [...existingData.projects, ...newProjects],
+    tasks: [...existingData.tasks, ...newTasks]
+  };
+}
+
+function buildSaveFilename(originalFilename, owner) {
+  const today = todayStr();
+  const time = nowTimeStr();
+  // Use owner from settings if available, fallback to parsing original filename, then 'tasks'
+  let base = 'tasks';
+  if (owner && owner.trim()) {
+    base = owner.trim().toLowerCase().replace(/\s+/g, '-');
+  } else if (originalFilename) {
+    const noExt = originalFilename.replace(/\.(ya?ml)$/i, "");
+    const dateMatch = noExt.match(/^(.+)_\d{4}-\d{2}-\d{2}$/);
+    base = dateMatch ? dateMatch[1] : noExt;
+  }
+  return `${base}_${today}_${time}.yaml`;
+}
+
+// ===== Inline Syntax Parser =====
+function parseQuickAdd(text) {
+  let title = text;
+  let priority = null;
+  let project = null;
+  let energy = null;
+  let due = null;
+  let estimate = null;
+  let newProjectName = null;
+  let forceStatus = null;
+
+  // Parse thread status: !thread (must be before priority — ! prefix is shared)
+  const threadMatch = title.match(/!thread\b/i);
+  if (threadMatch) {
+    forceStatus = 'thread';
+    title = title.replace(/!thread\b/i, '').trim();
+  }
+
+  // Parse priority: !critical/!high/!medium/!low
+  const priMatch = title.match(/!(critical|high|medium|low)\b/i);
+  if (priMatch) {
+    priority = priMatch[1].toLowerCase();
+    title = title.replace(/!(critical|high|medium|low)\b/i, '').trim();
+  }
+
+  // Parse project: @project-slug
+  const projMatch = title.match(/@([\w][\w-]*)/);
+  if (projMatch) {
+    project = projMatch[1].toLowerCase();
+    newProjectName = projMatch[1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    title = title.replace(/@[\w][\w-]*/, '').trim();
+  }
+
+  // Parse energy: #low/#medium/#high
+  const energyMatch = title.match(/#(low|medium|high)\b/i);
+  if (energyMatch) {
+    energy = energyMatch[1].toLowerCase();
+    title = title.replace(/#(low|medium|high)\b/i, '').trim();
+  }
+
+  // Parse estimate: ~30m or ~2h or ~1.5h
+  const estMatch = title.match(/~(\d+(?:\.\d+)?[mh])\b/i);
+  if (estMatch) {
+    estimate = estMatch[1];
+    title = title.replace(/~\d+(?:\.\d+)?[mh]\b/i, '').trim();
+  }
+
+  // Parse due date: due today/tomorrow/mon-sun/YYYY-MM-DD
+  const dueMatch = title.match(/due\s+(today|tomorrow|mon|tue|wed|thu|fri|sat|sun|\d{4}-\d{2}-\d{2})/i);
+  if (dueMatch) {
+    const dueWord = dueMatch[1].toLowerCase();
+    const today = new Date(todayStr() + 'T00:00:00');
+    if (dueWord === 'today') {
+      due = todayStr();
+    } else if (dueWord === 'tomorrow') {
+      const t = new Date(today);
+      t.setDate(t.getDate() + 1);
+      due = localDateStr(t);
+    } else if (['mon','tue','wed','thu','fri','sat','sun'].includes(dueWord)) {
+      const dayMap = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 0 };
+      const targetDay = dayMap[dueWord];
+      const t = new Date(today);
+      const currentDay = t.getDay();
+      let diff = targetDay - currentDay;
+      if (diff <= 0) diff += 7;
+      t.setDate(t.getDate() + diff);
+      due = localDateStr(t);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dueWord)) {
+      due = dueWord;
+    }
+    if (due) {
+      title = title.replace(/due\s+(today|tomorrow|mon|tue|wed|thu|fri|sat|sun|\d{4}-\d{2}-\d{2})/i, '').trim();
+    }
+  }
+
+  // Clean up extra spaces
+  title = title.replace(/\s+/g, ' ').trim();
+
+  return { title, priority, project, energy, due, estimate, newProjectName, forceStatus };
+}
+
+// ===== Default blank data =====
+function blankData() {
+  return {
+    meta: { created: todayStr(), last_review: null, owner: '', weekly_capacity_hours: 40 },
+    projects: [],
+    tasks: []
+  };
+}
+
+const LS_KEY = 'task-manager-data';
+
+// ===== Main App =====
+function App() {
+  const [data, setData] = useState(null);
+  const [originalFilename, setOriginalFilename] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+  const [toastAction, setToastAction] = useState(null);
+  const [viewMode, setViewMode] = useState("week");
+  const [selectedWeek, setSelectedWeek] = useState(currentISOWeek());
+  const [editingTask, setEditingTask] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [showReviewMode, setShowReviewMode] = useState(false);
+  const [suggestEnergy, setSuggestEnergy] = useState('all');
+  const [filterEnergy, setFilterEnergy] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterContext, setFilterContext] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [filterDue, setFilterDue] = useState("all");
+  // Quick-add fields
+  const [quickTitle, setQuickTitle] = useState("");
+  const [quickProject, setQuickProject] = useState("");
+  const [quickPriority, setQuickPriority] = useState("medium");
+  const [quickEnergy, setQuickEnergy] = useState("medium");
+  const [quickDue, setQuickDue] = useState("");
+  const [quickStatus, setQuickStatus] = useState("open");
+  const [quickEstimate, setQuickEstimate] = useState("");
+  const [quickNotes, setQuickNotes] = useState("");
+  const [quickWeek, setQuickWeek] = useState(selectedWeek);
+  const [weekViewMode, setWeekViewMode] = useState('planned'); // 'planned' | 'due'
+  // Add project form
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editProjName, setEditProjName] = useState("");
+  const [editProjStatus, setEditProjStatus] = useState("active");
+  const [editProjTarget, setEditProjTarget] = useState("");
+  const [editProjNotes, setEditProjNotes] = useState("");
+  const [newProjectId, setNewProjectId] = useState("");
+  const [newProjectName, setNewProjectName] = useState("");
+  // localStorage restore
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [lsData, setLsData] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('task-manager-theme') || 'industrial');
+  // Stats HUD collapsed state (F7) — persisted in localStorage
+  const [hudCollapsed, setHudCollapsed] = useState(() => localStorage.getItem('task-manager-hud-collapsed') === 'true');
+
+  // ===== Team view state (separate from single-user data) =====
+  const [teamData, setTeamData] = useState([]);
+  const [teamWeekStart, setTeamWeekStart] = useState(() => shiftWeek(currentISOWeek(), -2));
+  const [teamSubView, setTeamSubView] = useState(() => localStorage.getItem('task-manager-team-subview') || 'workload');
+  const [teamDragOver, setTeamDragOver] = useState(false);
+  const [teamExpandedCell, setTeamExpandedCell] = useState(null); // {engineerIdx, weekIdx}
+  // Delegation
+  const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [delegateTarget, setDelegateTarget] = useState('');
+  const [knownEngineers, setKnownEngineers] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('task-manager-engineers') || '[]'); }
+    catch { return []; }
+  });
+
+  // ===== Auto-load current file into team view when switching to Team tab =====
+  // Always re-inject current data so Team view reflects latest task changes.
+  // Externally-loaded team files are preserved (not overwritten).
+  useEffect(() => {
+    if (viewMode !== 'team' || !data) return;
+    const owner = data.meta?.owner || (originalFilename ? ownerFromFilename(originalFilename) : 'My Tasks');
+    setTeamData(prev => {
+      const others = prev.filter(td => td.owner !== owner);
+      return [...others, {
+        owner,
+        filename: originalFilename || 'current',
+        capacity: data.meta?.weekly_capacity_hours || 40,
+        data: data
+      }];
+    });
+  }, [viewMode, data, originalFilename]);
+  // ===== Refresh team data (re-inject current file) =====
+  const refreshTeam = useCallback(() => {
+    if (!data) return;
+    const owner = data.meta?.owner || (originalFilename ? ownerFromFilename(originalFilename) : 'My Tasks');
+    setTeamData(prev => {
+      const others = prev.filter(td => td.owner !== owner);
+      return [...others, {
+        owner,
+        filename: originalFilename || 'current',
+        capacity: data.meta?.weekly_capacity_hours || 40,
+        data: data
+      }];
+    });
+    showToast("Team data refreshed");
+  }, [data, originalFilename, showToast]);
+
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsOwner, setSettingsOwner] = useState('');
+  const [settingsCapacity, setSettingsCapacity] = useState(40);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [collapsedProjects, setCollapsedProjects] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('task-manager-collapsed-projects') || '{}'); }
+    catch { return {}; }
+  });
+
+  const fileInputRef = useRef(null);
+  const quickAddInputRef = useRef(null);
+  const teamFileInputRef = useRef(null);
+  const deletedTaskRef = useRef(null);
+  const deleteTimerRef = useRef(null);
+  const firstEditFieldRef = useRef(null);
+
+  const showToast = useCallback((msg, actionFn) => {
+    setToast(msg);
+    setToastAction(actionFn ? { fn: actionFn } : null);
+    setTimeout(() => { setToast(""); setToastAction(null); }, actionFn ? 8000 : 3000);
+  }, []);
+
+  // ===== localStorage: check for saved data on mount =====
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.data && parsed.data.tasks) {
+          setLsData(parsed);
+          setShowRestorePrompt(true);
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }, []);
+
+  // ===== localStorage: auto-save on every data change =====
+  useEffect(() => {
+    if (data) {
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify({ data, originalFilename, savedAt: new Date().toISOString() }));
+      } catch (e) { /* ignore quota errors */ }
+    }
+  }, [data, originalFilename]);
+
+  // ===== beforeunload warning =====
+  useEffect(() => {
+    const handler = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  // ===== Theme persistence + body class =====
+  useEffect(() => {
+    localStorage.setItem('task-manager-theme', theme);
+    document.body.className = `theme-${theme}`;
+  }, [theme]);
+
+  // ===== Sync quickWeek when selectedWeek changes =====
+  useEffect(() => setQuickWeek(selectedWeek), [selectedWeek]);
+
+  // ===== Team sub-view persistence =====
+  useEffect(() => {
+    localStorage.setItem('task-manager-team-subview', teamSubView);
+  }, [teamSubView]);
+
+  // ===== Scroll-to-top visibility =====
+  useEffect(() => {
+    const handler = () => setShowScrollTop(window.scrollY > 300);
+    window.addEventListener('scroll', handler, { passive: true });
+    return () => window.removeEventListener('scroll', handler);
+  }, []);
+
+  // ===== Collapsed projects persistence =====
+  useEffect(() => {
+    localStorage.setItem('task-manager-collapsed-projects', JSON.stringify(collapsedProjects));
+  }, [collapsedProjects]);
+
+  // ===== HUD collapsed persistence (F7) =====
+  useEffect(() => {
+    localStorage.setItem('task-manager-hud-collapsed', String(hudCollapsed));
+  }, [hudCollapsed]);
+
+  // ===== Team multi-file load =====
+  const PRIORITY_WEIGHTS = { critical: 4, high: 3, medium: 2, low: 1 };
+  const LOAD_SCORE_YELLOW = 12;
+  const LOAD_SCORE_RED = 16;
+
+  const ownerFromFilename = useCallback((filename) => {
+    // Strip tasks_ prefix and _YYYY-MM-DD suffix
+    let base = filename.replace(/\.(ya?ml)$/i, '');
+    base = base.replace(/^tasks_/, '');
+    base = base.replace(/_\d{4}-\d{2}-\d{2}$/, '');
+    // If result is empty or generic ('tasks'), use full filename without extension
+    if (!base || base === 'tasks') {
+      return filename.replace(/\.(ya?ml)$/i, '');
+    }
+    return base;
+  }, []);
+
+  const handleTeamFileLoad = useCallback((fileList) => {
+    const files = Array.from(fileList);
+    const successes = [];
+    const failures = [];
+    let processed = 0;
+    const total = files.length;
+
+    files.forEach(file => {
+      if (!file.name.match(/\.(ya?ml)$/i)) {
+        failures.push(file.name);
+        processed++;
+        checkDone();
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = jsyaml.load(e.target.result);
+          if (!parsed || typeof parsed !== 'object') throw new Error("Empty or invalid YAML");
+          const owner = parsed.meta?.owner || ownerFromFilename(file.name);
+          const capacity = parsed.meta?.weekly_capacity_hours || 40;
+          // Dedupe by owner (P2: TV-15)
+          if (teamData.some(td => td.owner === owner)) {
+            failures.push(`${file.name} (already loaded: ${owner})`);
+            processed++;
+            checkDone();
+            return;
+          }
+          // Reuse same task/project parsing as handleFileLoad
+          const loaded = {
+            meta: {
+              created: parsed.meta?.created || todayStr(),
+              last_review: parsed.meta?.last_review || null,
+              owner: parsed.meta?.owner || '',
+              weekly_capacity_hours: capacity
+            },
+            projects: (parsed.projects || []).map(p => ({
+              id: p.id || '',
+              name: p.name || p.id || '',
+              status: p.status || 'active',
+              target_date: p.target_date || null,
+              notes: p.notes || ''
+            })),
+            tasks: (parsed.tasks || []).map(t => ({
+              id: t.id || nextTaskId(parsed.tasks || []),
+              title: t.title || '',
+              project: t.project || null,
+              status: t.status || 'open',
+              priority: t.priority || 'medium',
+              due: t.due || null,
+              week: t.week || null,
+              energy: t.energy || 'medium',
+              estimate: t.estimate || '',
+              context: t.context || 'work',
+              created: t.created || todayStr(),
+              notes: t.notes || ''
+            }))
+          };
+          successes.push({ owner, filename: file.name, capacity, data: loaded });
+        } catch (err) {
+          failures.push(file.name);
+        }
+        processed++;
+        checkDone();
+      };
+      reader.onerror = () => {
+        failures.push(file.name);
+        processed++;
+        checkDone();
+      };
+      reader.readAsText(file);
+    });
+
+    function checkDone() {
+      if (processed < total) return;
+      // Append successes to teamData
+      if (successes.length > 0) {
+        setTeamData(prev => [...prev, ...successes]);
+      }
+      // Summary toast (TV-12)
+      if (failures.length === 0) {
+        showToast(`Loaded ${successes.length}/${total} files.`);
+      } else {
+        const failList = failures.slice(0, 3).join(', ');
+        const extra = failures.length > 3 ? ` +${failures.length - 3} more` : '';
+        showToast(`Loaded ${successes.length}/${total} files. Failed: ${failList}${extra}`);
+      }
+    }
+  }, [teamData, ownerFromFilename, showToast]);
+
+  const handleTeamDragOver = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setTeamDragOver(true);
+  }, []);
+  const handleTeamDragLeave = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setTeamDragOver(false);
+  }, []);
+  const handleTeamDrop = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setTeamDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleTeamFileLoad(e.dataTransfer.files);
+    }
+  }, [handleTeamFileLoad]);
+  const handleTeamFilePick = useCallback((e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleTeamFileLoad(e.target.files);
+    }
+    e.target.value = "";
+  }, [handleTeamFileLoad]);
+
+  const removeEngineer = useCallback((idx) => {
+    const removed = teamData[idx];
+    setTeamData(prev => prev.filter((_, i) => i !== idx));
+    setTeamExpandedCell(null);
+    if (removed) showToast(`Removed ${removed.owner}`);
+  }, [teamData, showToast]);
+
+  // ===== Workload computation =====
+  const teamWeeks = useMemo(() => {
+    const weeks = [];
+    for (let i = 0; i < 5; i++) {
+      weeks.push(shiftWeek(teamWeekStart, i));
+    }
+    return weeks;
+  }, [teamWeekStart]);
+
+  const workloadData = useMemo(() => {
+    // For each engineer, split into sub-rows by delegated_to (F8)
+    const cw = currentISOWeek();
+    return teamData.map(td => {
+      const activeStatuses = ['open', 'in_progress', 'blocked'];
+      const activeTasks = td.data.tasks.filter(t => activeStatuses.includes(t.status));
+      // v6.12 F1: Also include done tasks for historical bandwidth visibility in prior weeks
+      const doneTasks = td.data.tasks.filter(t => t.status === 'done');
+
+      // Group active by delegated_to
+      const selfTasks = activeTasks.filter(t => !t.delegated_to);
+      const delegatedGroups = {};
+      activeTasks.filter(t => t.delegated_to).forEach(t => {
+        const key = t.delegated_to;
+        if (!delegatedGroups[key]) delegatedGroups[key] = [];
+        delegatedGroups[key].push(t);
+      });
+
+      // Group done by delegated_to (for prior week completed scores)
+      const selfDoneTasks = doneTasks.filter(t => !t.delegated_to);
+      const delegatedDoneGroups = {};
+      doneTasks.filter(t => t.delegated_to).forEach(t => {
+        const key = t.delegated_to;
+        if (!delegatedDoneGroups[key]) delegatedDoneGroups[key] = [];
+        delegatedDoneGroups[key].push(t);
+      });
+
+      // Cross-reference: check if delegated engineer has their own teamData entry
+      const loadedOwners = teamData.map(td => td.owner);
+
+      const buildCells = (taskSubset, doneSubset) => teamWeeks.map(wk => {
+        const cellTasks = taskSubset.filter(t => t.week === wk);
+        const score = cellTasks.reduce((sum, t) => sum + (PRIORITY_WEIGHTS[t.priority] || 0), 0);
+        const highPriorityCount = cellTasks.filter(t => t.priority === 'critical' || t.priority === 'high').length;
+        // v6.12 F1: Completed task score for prior weeks
+        const isPastWeek = wk < cw;
+        let completedScore = 0;
+        let completedCount = 0;
+        if (isPastWeek && doneSubset) {
+          const doneInWeek = doneSubset.filter(t => (t.week_completed || t.week) === wk);
+          completedScore = doneInWeek.reduce((sum, t) => sum + (PRIORITY_WEIGHTS[t.priority] || 0), 0);
+          completedCount = doneInWeek.length;
+        }
+        const totalScore = score + completedScore;
+        const totalCount = cellTasks.length + completedCount;
+        return { score, count: cellTasks.length, highPriorityCount, tasks: cellTasks, week: wk,
+                 completedScore, completedCount, totalScore, totalCount, isPastWeek };
+      });
+
+      const subRows = [
+        { label: td.owner, isDelegated: false, delegatedTo: null, cells: buildCells(selfTasks, selfDoneTasks) }
+      ];
+
+      Object.keys(delegatedGroups).sort().forEach(engineer => {
+        // Cross-reference dedup: if this engineer has their own loaded file, skip their sub-row
+        const hasOwnFile = loadedOwners.some(o => o === engineer);
+        if (!hasOwnFile) {
+          subRows.push({
+            label: `${td.owner} → ${engineer}`,
+            isDelegated: true,
+            delegatedTo: engineer,
+            cells: buildCells(delegatedGroups[engineer], delegatedDoneGroups[engineer] || [])
+          });
+        }
+      });
+
+      return { owner: td.owner, capacity: td.capacity, subRows };
+    });
+  }, [teamData, teamWeeks]);
+
+  const cellColorClass = useCallback((cellData) => {
+    if (cellData.totalCount === 0) return '';
+    const s = cellData.isPastWeek ? cellData.totalScore : cellData.score;
+    if (s > LOAD_SCORE_RED) return 'red-light';
+    if (s > LOAD_SCORE_YELLOW) return 'yellow-light';
+    return 'green-light';
+  }, []);
+
+  // ===== Priority cross-cut data =====
+  const teamPriorityData = useMemo(() => {
+    const groups = { critical: [], high: [], medium: [], low: [] };
+    const activeStatuses = ['open', 'in_progress', 'blocked'];
+    teamData.forEach(td => {
+      td.data.tasks.filter(t => activeStatuses.includes(t.status)).forEach(t => {
+        const projName = td.data.projects.find(p => p.id === t.project)?.name || t.project || '';
+        groups[t.priority || 'medium'].push({ ...t, engineer: td.owner, projectName: projName });
+      });
+    });
+    // Sort each group by due date ascending (overdue first, no-due last)
+    Object.keys(groups).forEach(k => {
+      groups[k].sort((a, b) => {
+        if (a.due && b.due) return a.due.localeCompare(b.due);
+        if (a.due) return -1;
+        if (b.due) return 1;
+        return 0;
+      });
+    });
+    return groups;
+  }, [teamData]);
+
+  // ===== Team review data =====
+  const teamReviewData = useMemo(() => {
+    const blocked = [];
+    const stale = [];
+    const upcoming = [];
+    const overloaded = [];
+
+    const today = todayStr();
+    const sevenDaysLater = new Date(today + 'T00:00:00');
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    const sevenDaysStr = localDateStr(sevenDaysLater);
+
+    teamData.forEach(td => {
+      td.data.tasks.forEach(t => {
+        const entry = { ...t, engineer: td.owner, projectName: td.data.projects.find(p => p.id === t.project)?.name || t.project || '' };
+        if (t.status === 'blocked') blocked.push(entry);
+        if (isStale(t) || isVeryStale(t)) {
+          stale.push({ ...entry, daysOld: daysSince(t.last_touched || t.created), veryStale: isVeryStale(t) });
+        }
+        if (t.due && t.due >= today && t.due <= sevenDaysStr && t.status !== 'done' && t.status !== 'deferred') {
+          upcoming.push(entry);
+        }
+      });
+    });
+
+    // Overloaded weeks derived from workloadData (F8: iterate subRows)
+    workloadData.forEach(wd => {
+      wd.subRows.forEach(subRow => {
+        subRow.cells.forEach((cell, idx) => {
+          if (cell.score > LOAD_SCORE_RED) {
+            overloaded.push({ engineer: subRow.label, week: teamWeeks[idx], score: cell.score, level: 'RED' });
+          } else if (cell.score > LOAD_SCORE_YELLOW) {
+            overloaded.push({ engineer: subRow.label, week: teamWeeks[idx], score: cell.score, level: 'YELLOW' });
+          }
+        });
+      });
+    });
+
+    // Sort upcoming by due ascending
+    upcoming.sort((a, b) => a.due.localeCompare(b.due));
+
+    return { blocked, stale, upcoming, overloaded };
+  }, [teamData, workloadData, teamWeeks]);
+
+  // ===== Global keyboard shortcuts =====
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      const inField = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+
+      // Esc always works
+      if (e.key === 'Escape') {
+        if (editingTask !== null) { setEditingTask(null); return; }
+        if (showSuggestModal) { setShowSuggestModal(false); return; }
+        if (showReviewMode) { setShowReviewMode(false); return; }
+        if (showSettingsModal) { setShowSettingsModal(false); return; }
+        if (showNewConfirm) { setShowNewConfirm(false); return; }
+        if (teamExpandedCell) { setTeamExpandedCell(null); return; }
+        return;
+      }
+
+      // Ctrl+S / Cmd+S always works
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (data) handleSaveRef.current();
+        return;
+      }
+
+      if (inField) return;
+
+      if (e.key === 'n' || e.key === '/') {
+        e.preventDefault();
+        quickAddInputRef.current?.focus();
+      } else if (e.key === '1') {
+        setViewMode('week'); setShowReviewMode(false);
+      } else if (e.key === '2') {
+        setViewMode('project'); setShowReviewMode(false);
+      } else if (e.key === '3') {
+        setViewMode('team'); setShowReviewMode(false);
+      } else if (e.key === 'r') {
+        setShowReviewMode(prev => !prev);
+      } else if (e.key === 'w') {
+        setShowSuggestModal(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingTask, showSuggestModal, showReviewMode, showSettingsModal, showNewConfirm, teamExpandedCell, data]);
+
+  // Ref to latest handleSave for keyboard handler
+  const handleSaveRef = useRef(null);
+
+  // ===== Load =====
+  const handleFileLoad = useCallback((file) => {
+    if (!file) return;
+    if (!file.name.match(/\.(ya?ml)$/i)) {
+      setError(`Not a YAML file: ${file.name}`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = jsyaml.load(e.target.result);
+        if (!parsed || typeof parsed !== 'object') throw new Error("Empty or invalid YAML");
+        const loaded = {
+          meta: {
+            created: parsed.meta?.created || todayStr(),
+            last_review: parsed.meta?.last_review || null,
+            owner: parsed.meta?.owner || '',
+            weekly_capacity_hours: parsed.meta?.weekly_capacity_hours || 40
+          },
+          projects: (parsed.projects || []).map(p => ({
+            id: p.id || '',
+            name: p.name || p.id || '',
+            status: p.status || 'active',
+            target_date: p.target_date || null,
+            notes: p.notes || ''
+          })),
+          tasks: (parsed.tasks || []).map(t => ({
+            id: t.id || nextTaskId(parsed.tasks || []),
+            title: t.title || '',
+            project: t.project || null,
+            status: t.status || 'open',
+            priority: t.priority || 'medium',
+            due: t.due || null,
+            week: t.week || null,
+            energy: t.energy || 'medium',
+            estimate: t.estimate || '',
+            context: t.context || 'work',
+            created: t.created || todayStr(),
+            notes: t.notes || '',
+            delegated_to: t.delegated_to || null,
+            delegated_by: t.delegated_by || null,
+            delegation_date: t.delegation_date || null
+          }))
+        };
+        // Check if this is a delegation batch — merge into existing data instead of replacing
+        if (parsed.meta?.delegation_batch && data) {
+          const existingIds = new Set(data.tasks.map(t => t.id));
+          const existingProjIds = new Set(data.projects.map(p => p.id));
+          const newTasks = loaded.tasks.filter(t => !existingIds.has(t.id));
+          const updatedTasks = loaded.tasks.filter(t => existingIds.has(t.id));
+          const newProjects = loaded.projects.filter(p => !existingProjIds.has(p.id));
+          const merged = mergeDelegationBatch(data, loaded);
+          setData(merged);
+          setDirty(true);
+          setError("");
+          const parts = [];
+          if (newTasks.length > 0) parts.push(`${newTasks.length} new task${newTasks.length > 1 ? 's' : ''}`);
+          if (updatedTasks.length > 0) parts.push(`${updatedTasks.length} updated`);
+          if (newProjects.length > 0) parts.push(`${newProjects.length} new project${newProjects.length > 1 ? 's' : ''}`);
+          const summary = parts.length > 0 ? parts.join(', ') : 'no changes';
+          showToast(`Imported from ${file.name}: ${summary}`);
+        } else {
+          setData(loaded);
+          setOriginalFilename(file.name);
+          setDirty(false);
+          setError("");
+          if (loaded.tasks.some(t => t.week === currentISOWeek())) {
+            setSelectedWeek(currentISOWeek());
+          }
+          showToast(`Loaded: ${file.name}`);
+        }
+      } catch (err) {
+        setError(`Failed to parse YAML: ${err.message}`);
+      }
+    };
+    reader.onerror = () => setError("Failed to read file");
+    reader.readAsText(file);
+  }, [showToast]);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setDragOver(true);
+  }, []);
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setDragOver(false);
+  }, []);
+  const handleDrop = useCallback((e) => {
+    e.preventDefault(); e.stopPropagation(); setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileLoad(file);
+  }, [handleFileLoad]);
+  const handleFilePick = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) handleFileLoad(file);
+    e.target.value = "";
+  }, [handleFileLoad]);
+
+  // ===== Restore from localStorage =====
+  const handleRestoreLS = useCallback(() => {
+    if (lsData) {
+      setData(lsData.data);
+      setOriginalFilename(lsData.originalFilename || "");
+      setDirty(true);
+      setError("");
+      if (lsData.data.tasks?.some(t => t.week === currentISOWeek())) {
+        setSelectedWeek(currentISOWeek());
+      }
+      showToast("Restored from browser storage");
+    }
+    setShowRestorePrompt(false);
+  }, [lsData, showToast]);
+
+  // ===== New =====
+  const [showNewConfirm, setShowNewConfirm] = useState(false);
+
+  const handleNew = useCallback(() => {
+    if (dirty) { setShowNewConfirm(true); return; }
+    setData(blankData());
+    setOriginalFilename("");
+    setDirty(true);
+    setError("");
+    setSelectedWeek(currentISOWeek());
+    setViewMode("week");
+    setShowReviewMode(false);
+    setEditingTask(null);
+  }, [dirty]);
+
+  // ===== Save =====
+  const handleSave = useCallback(() => {
+    if (!data) return;
+    const metaToSave = { ...data.meta, last_review: data.meta.last_review || null };
+    // Only include owner if non-empty; only include weekly_capacity_hours if !== 40
+    const saveMeta = {};
+    if (metaToSave.created) saveMeta.created = metaToSave.created;
+    saveMeta.last_review = metaToSave.last_review;
+    if (metaToSave.owner) saveMeta.owner = metaToSave.owner;
+    if (metaToSave.weekly_capacity_hours !== undefined && metaToSave.weekly_capacity_hours !== 40) {
+      saveMeta.weekly_capacity_hours = metaToSave.weekly_capacity_hours;
+    }
+    const toSave = { ...data, meta: saveMeta };
+    const yamlStr = jsyaml.dump(toSave, {
+      indent: 2, lineWidth: -1, noRefs: true, sortKeys: false
+    });
+    const filename = buildSaveFilename(originalFilename, data.meta?.owner);
+    const blob = new Blob([yamlStr], { type: "text/yaml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    setDirty(false);
+    setOriginalFilename(filename);
+    showToast(`Saved: ${filename}`);
+  }, [data, originalFilename, showToast]);
+
+  handleSaveRef.current = handleSave;
+
+  // ===== Update data helper =====
+  const updateData = useCallback((updater) => {
+    setData(prev => {
+      const next = { ...prev, meta: { ...prev.meta } };
+      updater(next);
+      return next;
+    });
+    setDirty(true);
+  }, []);
+
+  // ===== Quick Add =====
+  const handleQuickAdd = useCallback((openEditAfter = false) => {
+    if (!quickTitle.trim()) { showToast("Type a task title first"); return; }
+    const parsed = parseQuickAdd(quickTitle);
+    const cleanTitle = parsed.title || quickTitle.trim();
+
+    // Determine project — parsed overrides dropdown
+    let projectId = parsed.project || quickProject || null;
+
+    // Auto-create project if parsed and doesn't exist
+    if (parsed.project && parsed.newProjectName && !data.projects.some(p => p.id === parsed.project)) {
+      const newProj = {
+        id: parsed.project,
+        name: parsed.newProjectName,
+        status: 'active',
+        target_date: null,
+        notes: ''
+      };
+      updateData(d => { d.projects = [...d.projects, newProj]; });
+    }
+
+    const task = {
+      id: nextTaskId(data.tasks),
+      title: cleanTitle,
+      project: projectId,
+      status: parsed.forceStatus || quickStatus,
+      priority: parsed.priority || quickPriority,
+      due: parsed.due || quickDue || null,
+      week: quickWeek,
+      energy: parsed.energy || quickEnergy,
+      estimate: parsed.estimate || quickEstimate || '',
+      context: 'work',
+      created: todayStr(),
+      last_touched: todayStr(),
+      notes: quickNotes.trim(),
+      delegated_to: null,
+      delegated_by: null,
+      delegation_date: null
+    };
+    updateData(d => { d.tasks = [...d.tasks, task]; });
+    setQuickTitle("");
+    setQuickDue("");
+    setQuickStatus("open");
+    setQuickEstimate("");
+    setQuickNotes("");
+    setQuickWeek(selectedWeek);
+    showToast(`Added: ${task.id}`);
+    if (openEditAfter) {
+      setEditingTask(task.id);
+    } else {
+      // Stay focused on quick-add
+      setTimeout(() => quickAddInputRef.current?.focus(), 0);
+    }
+  }, [data, quickTitle, quickProject, quickPriority, quickEnergy, quickDue, quickStatus, quickEstimate, quickNotes, quickWeek, selectedWeek, updateData, showToast]);
+
+  // ===== Task actions =====
+  const toggleTaskDone = useCallback((taskId) => {
+    updateData(d => {
+      d.tasks = d.tasks.map(t => {
+        if (t.id !== taskId) return t;
+        if (t.status === 'done') {
+          // Un-marking: clear completion fields
+          return { ...t, status: 'open', last_touched: todayStr(), date_completed: null, week_completed: null };
+        }
+        // Marking done: set completion fields
+        const today = todayStr();
+        return { ...t, status: 'done', last_touched: todayStr(), date_completed: today, week_completed: isoWeekFromDateStr(today) };
+      });
+    });
+  }, [updateData]);
+
+  const deleteTask = useCallback((taskId) => {
+    // Store for undo
+    const task = data.tasks.find(t => t.id === taskId);
+    if (task) {
+      deletedTaskRef.current = task;
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = setTimeout(() => { deletedTaskRef.current = null; }, 8000);
+    }
+    updateData(d => { d.tasks = d.tasks.filter(t => t.id !== taskId); });
+    setEditingTask(null);
+    showToast(`${taskId} deleted — Tap UNDO to restore`, () => {
+      if (deletedTaskRef.current) {
+        const restored = deletedTaskRef.current;
+        deletedTaskRef.current = null;
+        updateData(d => { d.tasks = [...d.tasks, restored]; });
+        showToast(`${restored.id} restored`);
+      }
+    });
+  }, [data, updateData, showToast]);
+
+  const updateTask = useCallback((taskId, field, value) => {
+    updateData(d => {
+      d.tasks = d.tasks.map(t => {
+        if (t.id !== taskId) return t;
+        // Intercept status field changes for date_completed / week_completed (F2/F3)
+        if (field === 'status') {
+          const oldStatus = t.status;
+          if (value === 'done') {
+            // Setting to done: set completion fields
+            const today = todayStr();
+            return { ...t, status: value, last_touched: todayStr(), date_completed: today, week_completed: isoWeekFromDateStr(today) };
+          } else if (oldStatus === 'done') {
+            // Changing from done to anything else: clear completion fields
+            return { ...t, status: value, last_touched: todayStr(), date_completed: null, week_completed: null };
+          }
+        }
+        return { ...t, [field]: value, last_touched: todayStr() };
+      });
+    });
+  }, [updateData]);
+
+  // ===== Delegation actions =====
+  const delegateTask = useCallback((taskId, targetEngineer) => {
+    if (!targetEngineer.trim()) return;
+    const owner = targetEngineer.trim();
+    // Add to known engineers if new
+    setKnownEngineers(prev => {
+      if (prev.includes(owner)) return prev;
+      const next = [...prev, owner];
+      localStorage.setItem('task-manager-engineers', JSON.stringify(next));
+      return next;
+    });
+    updateData(d => {
+      d.tasks = d.tasks.map(t => t.id === taskId ? {
+        ...t, delegated_to: owner, delegation_date: todayStr(), last_touched: todayStr()
+      } : t);
+    });
+    showToast(`Delegated to ${owner}`);
+  }, [updateData, showToast]);
+
+  const undelegateTask = useCallback((taskId) => {
+    updateData(d => {
+      d.tasks = d.tasks.map(t => t.id === taskId ? {
+        ...t, delegated_to: null, delegation_date: null, last_touched: todayStr()
+      } : t);
+    });
+    showToast("Task un-delegated");
+  }, [updateData, showToast]);
+
+  const exportDelegations = useCallback((targetEngineer) => {
+    if (!data) return;
+    const managerOwner = data.meta?.owner || 'Manager';
+    const exportData = buildDelegationExport(data, targetEngineer, managerOwner);
+    if (exportData.tasks.length === 0) {
+      showToast(`No tasks delegated to ${targetEngineer}`);
+      return;
+    }
+    const yamlStr = jsyaml.dump(exportData, {
+      indent: 2, lineWidth: -1, noRefs: true, sortKeys: false
+    });
+    const filename = buildDelegationFilename(targetEngineer, managerOwner);
+    const blob = new Blob([yamlStr], { type: "text/yaml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast(`Exported ${exportData.tasks.length} tasks to ${filename}`);
+  }, [data, showToast]);
+
+  const addProject = useCallback((id, name) => {
+    if (!id.trim() || !name.trim()) return;
+    const slug = id.trim().toLowerCase().replace(/\s+/g, '-');
+    if (data.projects.some(p => p.id === slug)) {
+      showToast(`Project '${slug}' already exists`);
+      return;
+    }
+    updateData(d => {
+      d.projects = [...d.projects, {
+        id: slug, name: name.trim(), status: 'active',
+        target_date: null, notes: ''
+      }];
+    });
+    setNewProjectId("");
+    setNewProjectName("");
+    setShowAddProject(false);
+    showToast(`Project '${slug}' added`);
+  }, [data, updateData, showToast]);
+
+  const updateProject = useCallback((projectId, fields) => {
+    updateData(d => {
+      d.projects = d.projects.map(p => p.id === projectId ? { ...p, ...fields } : p);
+    });
+  }, [updateData]);
+
+  const startEditProject = useCallback((p) => {
+    setEditingProject(p.id);
+    setEditProjName(p.name);
+    setEditProjStatus(p.status || 'active');
+    setEditProjTarget(p.target_date || '');
+    setEditProjNotes(p.notes || '');
+  }, []);
+
+  const saveEditProject = useCallback(() => {
+    if (!editingProject) return;
+    updateProject(editingProject, {
+      name: editProjName.trim() || editingProject,
+      status: editProjStatus,
+      target_date: editProjTarget || null,
+      notes: editProjNotes.trim()
+    });
+    setEditingProject(null);
+    showToast("Project updated");
+  }, [editingProject, editProjName, editProjStatus, editProjTarget, editProjNotes, updateProject, showToast]);
+
+  // ===== Project collapse helpers (moved after projectTasks definition) =====
+
+  // ===== Computed values =====
+  const allWeeks = useMemo(() => {
+    if (!data) return [];
+    const weeks = new Set(data.tasks.map(t => t.week).filter(Boolean));
+    // Add rolling range: current week ±4 so users can plan ahead even with no tasks in those weeks
+    const cw = currentISOWeek();
+    weeks.add(cw);
+    for (let i = 1; i <= 4; i++) {
+      weeks.add(weekOffset(cw, i));
+      weeks.add(weekOffset(cw, -i));
+    }
+    return [...weeks].sort().reverse();
+  }, [data]);
+
+  // Projects sorted alphabetically by name — used in project view, quick-add picker, and edit form
+  const sortedProjects = useMemo(() => {
+    if (!data) return [];
+    return [...data.projects].sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || ''));
+  }, [data]);
+
+  const applyFilters = useCallback((tasks) => {
+    let result = tasks;
+    if (filterEnergy !== "all") result = result.filter(t => t.energy === filterEnergy);
+    if (filterStatus !== "all") result = result.filter(t => t.status === filterStatus);
+    if (filterContext !== "all") result = result.filter(t => (t.context || 'work') === filterContext);
+    if (filterPriority !== "all") result = result.filter(t => t.priority === filterPriority);
+    if (filterDue !== 'all') {
+      if (filterDue === 'overdue') result = result.filter(t => isOverdue(t));
+      else if (filterDue === 'soon') {
+        const today = todayStr();
+        const soon = new Date(today + 'T00:00:00');
+        soon.setDate(soon.getDate() + 3);
+        const soonStr = localDateStr(soon);
+        result = result.filter(t => t.due && t.due >= today && t.due <= soonStr && t.status !== 'done' && t.status !== 'deferred' && t.status !== 'thread');
+      }
+      else if (filterDue === 'thisweek') {
+        const cw = currentISOWeek();
+        result = result.filter(t => t.due && weekContainsDate(cw, t.due) && t.status !== 'done' && t.status !== 'deferred' && t.status !== 'thread');
+      }
+    }
+    return result;
+  }, [filterEnergy, filterStatus, filterContext, filterPriority, filterDue]);
+
+  const weekTasks = useMemo(() => {
+    if (!data) return { threads: [], overdue: [], carryover: [], regular: [] };
+    let tasks;
+    // When a Due filter is active (overdue/soon/thisweek), search across ALL tasks
+    // not just the current planned week — these are urgent-visibility filters
+    if (filterDue !== 'all') {
+      tasks = data.tasks.filter(t => t.status !== 'done' && t.status !== 'deferred' && t.status !== 'thread');
+      tasks = applyFilters(tasks);
+      return { threads: [], overdue: [], regular: sortTasks(tasks), carryover: [] };
+    } else if (weekViewMode === 'due') {
+      tasks = data.tasks.filter(t => t.due && weekContainsDate(selectedWeek, t.due) && t.status !== 'done' && t.status !== 'deferred' && t.status !== 'thread');
+      tasks = applyFilters(tasks);
+      return { threads: [], overdue: [], regular: sortTasks(tasks), carryover: [] };
+    } else {
+      // Planned mode
+      // Threads: ALL non-done thread-status tasks regardless of week (F1)
+      const threadTasks = data.tasks.filter(t => t.status === 'thread');
+      // Carryover statuses (open/in_progress/blocked) — used for carryover and overdue
+      const activeStatuses = ['open', 'in_progress', 'blocked'];
+      // Overdue: ALL overdue tasks regardless of planned week (matches HUD global count)
+      // Overdue takes priority over carryover and regular placement
+      const overdueTasks = data.tasks.filter(t =>
+        activeStatuses.includes(t.status) && isOverdue(t)
+      );
+      const overdueIds = new Set(overdueTasks.map(t => t.id));
+      // Carryover: tasks from prior weeks, non-overdue, non-thread, status active
+      const carryoverTasks = data.tasks.filter(t =>
+        t.week && t.week < selectedWeek && activeStatuses.includes(t.status) && !overdueIds.has(t.id)
+      );
+      // Regular: tasks for this week, NOT overdue, NOT thread
+      const regularTasks = data.tasks.filter(t =>
+        t.week === selectedWeek && t.status !== 'thread' && !overdueIds.has(t.id)
+      );
+      return {
+        threads: sortTasks(applyFilters(threadTasks)),
+        overdue: sortTasks(applyFilters(overdueTasks)),
+        carryover: sortTasks(applyFilters(carryoverTasks)),
+        regular: sortTasks(applyFilters(regularTasks))
+      };
+    }
+  }, [data, selectedWeek, applyFilters, weekViewMode, filterDue]);
+
+  const projectTasks = useMemo(() => {
+    if (!data) return {};
+    const groups = {};
+    for (const p of data.projects) {
+      groups[p.id] = sortTasks(applyFilters(data.tasks.filter(t => t.project === p.id)));
+    }
+    groups['__none__'] = sortTasks(applyFilters(data.tasks.filter(t => !t.project)));
+    return groups;
+  }, [data, applyFilters]);
+
+  // ===== Project collapse helpers (must be after projectTasks) =====
+  const toggleProjectCollapse = useCallback((projectId) => {
+    setCollapsedProjects(prev => {
+      const next = { ...prev };
+      if (next[projectId]) {
+        delete next[projectId];
+      } else {
+        next[projectId] = true;
+      }
+      return next;
+    });
+  }, []);
+
+  const isProjectCollapsed = useCallback((projectId) => !!collapsedProjects[projectId], [collapsedProjects]);
+
+  const allProjectsCollapsed = useMemo(() => {
+    if (!data || data.projects.length === 0) return false;
+    const allIds = [...data.projects.map(p => p.id)];
+    if (projectTasks['__none__'] && projectTasks['__none__'].length > 0) allIds.push('__none__');
+    return allIds.length > 0 && allIds.every(id => collapsedProjects[id]);
+  }, [data, collapsedProjects, projectTasks]);
+
+  const toggleAllProjectsCollapse = useCallback(() => {
+    if (!data) return;
+    if (allProjectsCollapsed) {
+      setCollapsedProjects({});
+    } else {
+      const allIds = [...data.projects.map(p => p.id)];
+      if (projectTasks['__none__'] && projectTasks['__none__'].length > 0) allIds.push('__none__');
+      const next = {};
+      allIds.forEach(id => { next[id] = true; });
+      setCollapsedProjects(next);
+    }
+  }, [data, allProjectsCollapsed, projectTasks]);
+
+  const weekStats = useMemo(() => {
+    if (!data) return { open: 0, done: 0, blocked: 0, total: 0 };
+    let tasks;
+    if (weekViewMode === 'due') {
+      tasks = data.tasks.filter(t => t.due && weekContainsDate(selectedWeek, t.due));
+    } else {
+      tasks = data.tasks.filter(t => t.week === selectedWeek);
+    }
+    return {
+      open: tasks.filter(t => t.status === 'open' || t.status === 'in_progress').length,
+      done: tasks.filter(t => t.status === 'done').length,
+      blocked: tasks.filter(t => t.status === 'blocked').length,
+      total: tasks.length
+    };
+  }, [data, selectedWeek, weekViewMode]);
+
+  const globalStats = useMemo(() => {
+    if (!data) return { total: 0, open: 0, done: 0, blocked: 0, overdue: 0, stale: 0, deferred: 0, threads: 0 };
+    const tasks = data.tasks;
+    return {
+      total: tasks.length,
+      open: tasks.filter(t => t.status === 'open' || t.status === 'in_progress').length,
+      done: tasks.filter(t => t.status === 'done').length,
+      blocked: tasks.filter(t => t.status === 'blocked').length,
+      overdue: tasks.filter(t => isOverdue(t)).length,
+      stale: tasks.filter(t => isStale(t)).length,
+      deferred: tasks.filter(t => t.status === 'deferred').length,
+      threads: tasks.filter(t => t.status === 'thread').length
+    };
+  }, [data]);
+
+  // ===== HUD stats (F7) — combines weekStats and globalStats =====
+  const hudStats = useMemo(() => {
+    if (!data) return { week: selectedWeek || currentISOWeek(), total: 0, open: 0, closed: 0, overdue: 0, threads: 0 };
+    const cw = selectedWeek;
+    // Tasks for this week (planned mode)
+    const weekTasksList = data.tasks.filter(t => t.week === cw);
+    const open = weekTasksList.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+    // Closed: tasks where week_completed === cw OR (status done AND no week_completed AND week === cw) — handles mixed old/new data
+    const closed = data.tasks.filter(t => (t.week_completed === cw) || (t.status === 'done' && (t.week_completed === undefined || t.week_completed === null) && t.week === cw)).length;
+    // Overdue: global (all weeks, not just current)
+    const overdue = data.tasks.filter(t => isOverdue(t)).length;
+    // Threads: global (all weeks)
+    const threads = data.tasks.filter(t => t.status === 'thread').length;
+    return {
+      week: cw,
+      total: weekTasksList.length,
+      open,
+      closed,
+      overdue,
+      threads
+    };
+  }, [data, selectedWeek]);
+
+  // ===== "What can I do now?" suggestions =====
+  const suggestions = useMemo(() => {
+    if (!data) return [];
+    let candidates = data.tasks.filter(t =>
+      t.status === 'open' || t.status === 'in_progress'
+    );
+    if (suggestEnergy !== 'all') {
+      candidates = candidates.filter(t => t.energy === suggestEnergy);
+    }
+    candidates.sort((a, b) => {
+      const aOver = isOverdue(a) ? 0 : 1;
+      const bOver = isOverdue(b) ? 0 : 1;
+      if (aOver !== bOver) return aOver - bOver;
+      const pa = PRIORITY_ORDER[a.priority] ?? 3;
+      const pb = PRIORITY_ORDER[b.priority] ?? 3;
+      if (pa !== pb) return pa - pb;
+      if (a.due && b.due) return a.due.localeCompare(b.due);
+      if (a.due) return -1;
+      if (b.due) return 1;
+      return 0;
+    });
+    return candidates.slice(0, 5);
+  }, [data, suggestEnergy]);
+
+  // ===== Weekly review data =====
+  const reviewData = useMemo(() => {
+    if (!data) return { stale: [], unassigned: [], blocked: [], doneThisWeek: [] };
+    const tasks = data.tasks;
+    return {
+      stale: tasks.filter(t => isStale(t)),
+      unassigned: tasks.filter(t => !t.week && (t.status === 'open' || t.status === 'in_progress')),
+      blocked: tasks.filter(t => t.status === 'blocked'),
+      doneThisWeek: tasks.filter(t => t.status === 'done' && t.week === currentISOWeek())
+    };
+  }, [data]);
+
+  // ===== Brag log export =====
+  const bragExportText = useMemo(() => {
+    if (!data) return '';
+    const done = data.tasks.filter(t => t.status === 'done' && t.week === currentISOWeek());
+    if (done.length === 0) return '(No completed tasks this week)';
+    return done.map(t => `- [${t.id}] ${t.title}`).join('\n');
+  }, [data]);
+
+  // ===== Brag copy =====
+  const copyBragToClipboard = useCallback(() => {
+    navigator.clipboard?.writeText(bragExportText).then(() => {
+      showToast("Brag log copied to clipboard");
+    }).catch(() => {
+      showToast("Copy failed — select and copy manually");
+    });
+  }, [bragExportText, showToast]);
+
+  // ===== Render: localStorage restore prompt =====
+  if (showRestorePrompt && !data) {
+    return (
+      <div className={`app theme-${theme}`}>
+        <div className="empty-state">
+          <h2>Task Manager</h2>
+          <p>Found unsaved data in your browser from a previous session.</p>
+          <div className="btn-group">
+            <button className="btn btn-primary" onClick={handleRestoreLS}>Restore Previous Session</button>
+            <button className="btn" onClick={() => setShowRestorePrompt(false)}>Start Fresh</button>
+            <button className="btn" onClick={() => fileInputRef.current?.click()}>Load from File</button>
+          </div>
+        </div>
+        <input type="file" ref={fileInputRef} style={{display:'none'}}
+          accept=".yaml,.yml" onChange={handleFilePick} />
+      </div>
+    );
+  }
+
+  // ===== Render: no data =====
+  if (!data) {
+    return (
+      <div className={`app theme-${theme}`}
+        onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+      >
+        <div className="empty-state">
+          <h2>Task Manager</h2>
+          <p>A personal task manager for ADHD brains. Capture tasks fast, see what's overdue, and figure out what to do next — even when you're fried.</p>
+          <div className="btn-group">
+            <button className="btn btn-primary" onClick={() => { setData(blankData()); setDirty(true); }}>New Task List</button>
+            <button className="btn" onClick={() => fileInputRef.current?.click()}>Load YAML</button>
+          </div>
+          <div className={"drop-zone" + (dragOver ? " dragover" : "")}
+            onClick={() => fileInputRef.current?.click()}>
+            <p>Drop a .yaml file here or click to browse</p>
+          </div>
+          <input type="file" ref={fileInputRef} style={{display:'none'}}
+            accept=".yaml,.yml" onChange={handleFilePick} />
+        </div>
+        {error && <div className="error-msg">{error}</div>}
+        {toast && <div className="toast">{toast}{toastAction && <button onClick={toastAction.fn}>Undo</button>}</div>}
+      </div>
+    );
+  }
+
+  // ===== Render: main app =====
+  return (
+    <div className={`app theme-${theme}`}
+      onDragOver={viewMode === 'team' ? handleTeamDragOver : handleDragOver}
+      onDragLeave={viewMode === 'team' ? handleTeamDragLeave : handleDragLeave}
+      onDrop={viewMode === 'team' ? handleTeamDrop : handleDrop}
+    >
+      {/* Header */}
+      <div className="header">
+        <h1>Task Manager</h1>
+        <div className="header-actions">
+          {dirty && <span className="dirty-badge">Unsaved Changes</span>}
+          <button className="btn" onClick={() => fileInputRef.current?.click()}>Load</button>
+          <button className="btn" onClick={handleNew}>New</button>
+          <button className="btn" onClick={() => setShowReviewMode(true)}>Review</button>
+          <button className="btn" onClick={() => setShowSuggestModal(true)}>What Now?</button>
+          <button className="btn btn-small btn-theme" onClick={() => setTheme(t => t === 'industrial' ? 'matrix' : 'industrial')}
+            title={theme === 'industrial' ? 'Switch to Matrix theme' : 'Switch to Industrial Workshop theme'}>
+            {theme === 'industrial' ? '◐' : '◑'}
+          </button>
+          <button className="btn btn-small" onClick={() => { setSettingsOwner(data.meta?.owner || ''); setSettingsCapacity(data.meta?.weekly_capacity_hours || 40); setShowSettingsModal(true); }}
+            title="Settings: owner name and weekly capacity">
+            ⚙
+          </button>
+          <button className={"btn btn-primary" + (showSettingsModal || showSuggestModal || showNewConfirm ? " btn-disabled" : "")}
+            onClick={handleSave}
+            disabled={showSettingsModal || showSuggestModal || showNewConfirm}>Save</button>
+        </div>
+      </div>
+
+      {error && <div className="error-msg">{error}</div>}
+
+      {/* Stats Bar */}
+      <div className="stats-bar">
+        <span className="stat-item"><span className="stat-dot" style={{background:'var(--accent)'}}></span> {globalStats.open} open</span>
+        <span className="stat-item"><span className="stat-dot" style={{background:'var(--green)'}}></span> {globalStats.done} done</span>
+        <span className="stat-item"><span className="stat-dot" style={{background:'var(--red)'}}></span> {globalStats.blocked} blocked</span>
+        {globalStats.overdue > 0 && <span className="stat-item"><span className="stat-dot" style={{background:'var(--red)'}}></span> {globalStats.overdue} overdue</span>}
+        {globalStats.stale > 0 && <span className="stat-item"><span className="stat-dot" style={{background:'var(--orange)'}}></span> {globalStats.stale} stale</span>}
+        {globalStats.deferred > 0 && <span className="stat-item"><span className="stat-dot" style={{background:'var(--ink-muted)'}}></span> {globalStats.deferred} deferred</span>}
+        {globalStats.threads > 0 && <span className="stat-item"><span className="stat-dot" style={{background:'var(--purple)'}}></span> {globalStats.threads} threads</span>}
+        <span className="stat-item" style={{marginLeft:'auto', color:'var(--ink-muted)'}}>{globalStats.total} total tasks</span>
+      </div>
+
+      {/* Review Mode */}
+      {showReviewMode ? (
+        <ReviewMode
+          reviewData={reviewData}
+          data={data}
+          allWeeks={allWeeks}
+          selectedWeek={selectedWeek}
+          bragExportText={bragExportText}
+          copyBragToClipboard={copyBragToClipboard}
+          toggleTaskDone={toggleTaskDone}
+          deleteTask={deleteTask}
+          updateTask={updateTask}
+          updateData={updateData}
+          setShowReviewMode={setShowReviewMode}
+          showToast={showToast}
+        />
+      ) : (
+        <>
+          {/* Quick Add — hidden in team and delegated mode */}
+          {viewMode !== 'team' && viewMode !== 'delegated' && (
+          <>
+          <div className="quick-add">
+            <div className="quick-add-row">
+            <div className="quick-add-field quick-add-task-field">
+              <label className="quick-add-label">TASK</label>
+              <input type="text" ref={quickAddInputRef}
+                placeholder="Type a task... !high @project #low due fri"
+                value={quickTitle}
+                onChange={e => setQuickTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    handleQuickAdd(false);
+                  } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    handleQuickAdd(true);
+                  }
+                }}
+              />
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">PROJECT</label>
+              <select value={quickProject} onChange={e => setQuickProject(e.target.value)}>
+                <option value="">No project</option>
+                {sortedProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">PRIORITY</label>
+              <select value={quickPriority} onChange={e => setQuickPriority(e.target.value)}>
+                {Object.entries(PRIORITY_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">ENERGY</label>
+              <select value={quickEnergy} onChange={e => setQuickEnergy(e.target.value)}>
+                {Object.entries(ENERGY_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            </div>
+            <div className="quick-add-row">
+            <div className="quick-add-field">
+              <label className="quick-add-label">STATUS</label>
+              <select value={quickStatus} onChange={e => setQuickStatus(e.target.value)}>
+                {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">DUE</label>
+              <input type="date" value={quickDue} onChange={e => setQuickDue(e.target.value)} title="Due date" />
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">PLANNED</label>
+              <select value={quickWeek} onChange={e => setQuickWeek(e.target.value)}>
+                {allWeeks.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
+            <div className="quick-add-field">
+              <label className="quick-add-label">ESTIMATE</label>
+              <input type="text" value={quickEstimate}
+                onChange={e => setQuickEstimate(e.target.value)}
+                placeholder="e.g. 30m"
+                style={{width: '80px', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: '0.82rem', fontFamily: 'var(--font-sans)', color: 'var(--ink-secondary)', background: 'var(--surface-tint)'}} />
+            </div>
+            </div>
+            <div className="quick-add-field quick-add-notes">
+              <label className="quick-add-label">NOTES</label>
+              <input type="text"
+                placeholder="Notes (optional)..."
+                value={quickNotes}
+                onChange={e => setQuickNotes(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleQuickAdd(false);
+                  }
+                }}
+              />
+            </div>
+            <div className="quick-add-buttons">
+              <button className="btn btn-primary" onClick={() => handleQuickAdd(false)}>+ Add</button>
+              <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}
+                title="Import a delegation YAML file from your manager">Import Delegations</button>
+            </div>
+          </div>
+          <div className="quick-add-hint">
+            Type a task and press Enter. Add !high for priority, @project for project, #low for energy, ~30m for estimate, due fri for due date.
+            <span className="quick-add-badge">Planned: {quickWeek}</span>
+          </div>
+          </>
+          )}
+
+          {/* View Tabs */}
+          <div className="view-tabs">
+            <div className={"view-tab" + (viewMode === "week" ? " active" : "")} onClick={() => setViewMode("week")}>Planned</div>
+            <div className={"view-tab" + (viewMode === "project" ? " active" : "")} onClick={() => setViewMode("project")}>Project</div>
+            <div className={"view-tab" + (viewMode === "delegated" ? " active" : "")} onClick={() => setViewMode("delegated")}>Delegated</div>
+            <div className={"view-tab" + (viewMode === "team" ? " active" : "")} onClick={() => setViewMode("team")}>Team</div>
+          </div>
+
+          {/* Filters — hidden in team and delegated mode */}
+          {viewMode !== 'team' && viewMode !== 'delegated' && (
+          <div className="filter-bar">
+            <label>Energy:</label>
+            <select value={filterEnergy} onChange={e => setFilterEnergy(e.target.value)}>
+              <option value="all">All</option>
+              <option value="low">LOW</option>
+              <option value="medium">MED</option>
+              <option value="high">HIGH</option>
+            </select>
+            <label>Status:</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="all">All</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+              <option value="blocked">Blocked</option>
+              <option value="deferred">Deferred</option>
+              <option value="thread">Thread</option>
+            </select>
+            <label>Context:</label>
+            <select value={filterContext} onChange={e => setFilterContext(e.target.value)}>
+              <option value="all">All</option>
+              {Object.entries(CONTEXT_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <label>Priority:</label>
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+              <option value="all">All</option>
+              {Object.entries(PRIORITY_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <label>Due:</label>
+            <select value={filterDue} onChange={e => setFilterDue(e.target.value)}>
+              <option value="all">All</option>
+              <option value="overdue">Overdue</option>
+              <option value="soon">Due soon (3 days)</option>
+              <option value="thisweek">Due this week</option>
+            </select>
+            <div className="filter-spacer"></div>
+            <button className="btn btn-small" onClick={() => { setFilterEnergy('all'); setFilterStatus('all'); setFilterContext('all'); setFilterPriority('all'); setFilterDue('all'); }}>Clear</button>
+          </div>
+          )}
+
+          {/* Week View */}
+          {viewMode === "week" && (
+            <>
+              <div className="week-nav">
+                <button className="week-nav-btn" onClick={() => setSelectedWeek(shiftWeek(selectedWeek, -1))}>←</button>
+                <h2 className={selectedWeek === currentISOWeek() ? "week-nav-current" : ""}>Planned: {selectedWeek}</h2>
+                <button className="week-nav-btn" onClick={() => setSelectedWeek(shiftWeek(selectedWeek, 1))}>→</button>
+                <select value={selectedWeek} onChange={e => setSelectedWeek(e.target.value)}>
+                  {allWeeks.map(w => (
+                    <option key={w} value={w}>
+                      {w} ({weekToDateRange(w)}){w === currentISOWeek() ? ' ← current' : ''}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn btn-small" onClick={() => setSelectedWeek(currentISOWeek())}>Today</button>
+                <button className={"btn btn-small" + (weekViewMode === 'due' ? " btn-primary" : "")}
+                  onClick={() => setWeekViewMode(m => m === 'planned' ? 'due' : 'planned')}
+                  title="Toggle between planned-week view and due-this-week view">
+                  {weekViewMode === 'planned' ? 'Show Due This Week' : 'Show Planned'}
+                </button>
+                <div className="week-stats">
+                  <span className="week-stat"><span className="week-stat-dot" style={{background:'var(--accent)'}}></span> {weekStats.open} open</span>
+                  <span className="week-stat"><span className="week-stat-dot" style={{background:'var(--green)'}}></span> {weekStats.done} done</span>
+                  <span className="week-stat"><span className="week-stat-dot" style={{background:'var(--red)'}}></span> {weekStats.blocked} blocked</span>
+                </div>
+              </div>
+
+              {(weekTasks.regular.length === 0 && weekTasks.carryover.length === 0 && weekTasks.threads.length === 0 && weekTasks.overdue.length === 0) ? (
+                <div style={{textAlign:'center', padding:'40px', color:'var(--ink-muted)'}}>
+                  {weekViewMode === 'planned'
+                    ? `No tasks planned for ${selectedWeek}. Add one above or switch weeks.`
+                    : `No tasks due during ${selectedWeek}.`}
+                </div>
+              ) : (
+                <>
+                  {weekViewMode === 'planned' && weekTasks.threads.length > 0 && (
+                    <div className="threads-section">
+                      <div className="threads-header">
+                        Threads
+                        <span className="threads-count">{weekTasks.threads.length}</span>
+                      </div>
+                      {weekTasks.threads.map(t => (
+                        <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                          setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                          deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                          knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                          isThread={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {weekViewMode === 'planned' && weekTasks.overdue.length > 0 && (
+                    <div className="overdue-section">
+                      <div className="overdue-header">
+                        Overdue
+                        <span className="overdue-count">{weekTasks.overdue.length}</span>
+                      </div>
+                      {weekTasks.overdue.map(t => (
+                        <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                          setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                          deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                          knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                          isCarryover={t.week < selectedWeek}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {weekViewMode === 'planned' && weekTasks.carryover.length > 0 && (
+                    <div className="carryover-section">
+                      <div className="carryover-header">
+                        Carryover from prior weeks
+                        <span className="carryover-count">{weekTasks.carryover.length}</span>
+                      </div>
+                      {weekTasks.carryover.map(t => (
+                        <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                          setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                          deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                          knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                          isCarryover={true}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {weekTasks.regular.map(t => (
+                    <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                      setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                      deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                      knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                    />
+                  ))}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Project View */}
+          {viewMode === "project" && (
+            <>
+              {/* Add Project button/form + Collapse All */}
+              {!showAddProject ? (
+                <div style={{display:'flex', gap:8, marginBottom:12}}>
+                  <button className="btn btn-small project-add-btn" onClick={() => setShowAddProject(true)}>+ Add Project</button>
+                  {data.projects.length > 0 && (
+                    <button className="btn btn-small project-collapse-all-btn" onClick={toggleAllProjectsCollapse}>
+                      {allProjectsCollapsed ? 'Expand All' : 'Collapse All'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="add-project-form">
+                  <input type="text" placeholder="Project ID (e.g. my-project)" value={newProjectId}
+                    onChange={e => setNewProjectId(e.target.value)} autoFocus
+                    onKeyDown={e => e.key === 'Enter' && addProject(newProjectId, newProjectName)} />
+                  <input type="text" placeholder="Project name" value={newProjectName}
+                    onChange={e => setNewProjectName(e.target.value)} style={{flex: 1, minWidth: 150}}
+                    onKeyDown={e => e.key === 'Enter' && addProject(newProjectId, newProjectName)} />
+                  <button className="btn btn-primary btn-small" onClick={() => addProject(newProjectId, newProjectName)}>Add</button>
+                  <button className="btn btn-small" onClick={() => { setShowAddProject(false); setNewProjectId(""); setNewProjectName(""); }}>Cancel</button>
+                </div>
+              )}
+
+              {data.projects.length === 0 && (!projectTasks['__none__'] || projectTasks['__none__'].length === 0) ? (
+                <div className="project-no-project">
+                  <p>No projects yet. Use the Add Project button above or type @project-slug in the quick-add bar.</p>
+                </div>
+              ) : (
+                <>
+                  {sortedProjects.map(p => {
+                    const tasks = projectTasks[p.id] || [];
+                    const open = tasks.filter(t => t.status !== 'done' && t.status !== 'deferred').length;
+                    const blocked = tasks.filter(t => t.status === 'blocked').length;
+                    const collapsed = isProjectCollapsed(p.id) && editingProject !== p.id;
+                    return (
+                      <div key={p.id} className="project-section">
+                        <div className="project-header">
+                          <h2 onClick={() => toggleProjectCollapse(p.id)}>
+                            <span className="project-chevron">{collapsed ? '▸' : '▾'}</span>
+                            {p.name}{p.status && p.status !== 'active' && <span className="project-status-badge">{p.status === 'on-hold' ? 'On Hold' : p.status}</span>}
+                          </h2>
+                          <div className="project-stats">
+                            {open} open · {blocked} blocked
+                            {p.target_date && ` · target ${p.target_date}`}
+                            <button className="btn btn-small" style={{marginLeft: 8, padding: '2px 8px'}} onClick={() => { startEditProject(p); if (isProjectCollapsed(p.id)) toggleProjectCollapse(p.id); }}>✎ Edit</button>
+                          </div>
+                        </div>
+                        {editingProject === p.id ? (
+                          <div className="add-project-form" style={{flexDirection: 'column', gap: 8}}>
+                            <div style={{display: 'flex', gap: 8}}>
+                              <input type="text" placeholder="Project name" value={editProjName}
+                                onChange={e => setEditProjName(e.target.value)} style={{flex: 1}} autoFocus />
+                              <select value={editProjStatus} onChange={e => setEditProjStatus(e.target.value)}>
+                                <option value="active">Active</option>
+                                <option value="on-hold">On Hold</option>
+                                <option value="done">Done</option>
+                              </select>
+                            </div>
+                            <div style={{display: 'flex', gap: 8}}>
+                              <label style={{fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-muted)'}}>TARGET DATE</label>
+                              <input type="date" value={editProjTarget} onChange={e => setEditProjTarget(e.target.value)} />
+                            </div>
+                            <textarea placeholder="Project notes..." value={editProjNotes}
+                              onChange={e => setEditProjNotes(e.target.value)} rows={2}
+                              style={{width: '100%', resize: 'vertical'}} />
+                            <div style={{display: 'flex', gap: 8}}>
+                              <button className="btn btn-primary btn-small" onClick={saveEditProject}>Save</button>
+                              <button className="btn btn-small" onClick={() => setEditingProject(null)}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          p.notes && !collapsed && <div className="project-notes-display">{p.notes}</div>
+                        )}
+                        {!collapsed && (
+                          tasks.length === 0 ? (
+                            <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No tasks in this project.</p>
+                          ) : (
+                            tasks.map(t => (
+                              <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                                setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                                deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                    knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                              />
+                            ))
+                          )
+                        )}
+                      </div>
+                    );
+                  })}
+                  {projectTasks['__none__'] && projectTasks['__none__'].length > 0 && (
+                    <div className="project-section">
+                      <div className="project-header">
+                        <h2 onClick={() => toggleProjectCollapse('__none__')}>
+                          <span className="project-chevron">{isProjectCollapsed('__none__') ? '▸' : '▾'}</span>
+                          Unassigned
+                        </h2>
+                        <div className="project-stats">{projectTasks['__none__'].length} tasks</div>
+                      </div>
+                      {!isProjectCollapsed('__none__') && projectTasks['__none__'].map(t => (
+                        <TaskCard key={t.id} task={t} data={data} editingTask={editingTask}
+                          setEditingTask={setEditingTask} toggleTaskDone={toggleTaskDone}
+                          deleteTask={deleteTask} updateTask={updateTask} allWeeks={allWeeks}
+                    knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode={viewMode} showToast={showToast}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Delegated View */}
+          {viewMode === "delegated" && (
+            <DelegatedView
+              data={data}
+              editingTask={editingTask}
+              setEditingTask={setEditingTask}
+              toggleTaskDone={toggleTaskDone}
+              deleteTask={deleteTask}
+              updateTask={updateTask}
+              allWeeks={allWeeks}
+              knownEngineers={knownEngineers}
+              delegateTask={delegateTask}
+              undelegateTask={undelegateTask}
+              exportDelegations={exportDelegations}
+              setViewMode={setViewMode}
+              setSelectedWeek={setSelectedWeek}
+              showToast={showToast}
+            />
+          )}
+
+          {/* Team View */}
+          {viewMode === "team" && (
+            <TeamView
+              teamData={teamData}
+              teamWeekStart={teamWeekStart}
+              setTeamWeekStart={setTeamWeekStart}
+              teamSubView={teamSubView}
+              setTeamSubView={setTeamSubView}
+              teamDragOver={teamDragOver}
+              handleTeamDragOver={handleTeamDragOver}
+              handleTeamDragLeave={handleTeamDragLeave}
+              handleTeamDrop={handleTeamDrop}
+              teamFileInputRef={teamFileInputRef}
+              handleTeamFilePick={handleTeamFilePick}
+              removeEngineer={removeEngineer}
+              refreshTeam={refreshTeam}
+              teamWeeks={teamWeeks}
+              workloadData={workloadData}
+              cellColorClass={cellColorClass}
+              teamExpandedCell={teamExpandedCell}
+              setTeamExpandedCell={setTeamExpandedCell}
+              teamPriorityData={teamPriorityData}
+              teamReviewData={teamReviewData}
+              currentWeek={currentISOWeek()}
+              onJumpToTask={(task) => {
+                if (task.week) setSelectedWeek(task.week);
+                setViewMode('week');
+                setEditingTask(task.id);
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {/* Suggest Modal */}
+      {showSuggestModal && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target.className === 'modal-overlay') setShowSuggestModal(false); }}>
+          <div className="modal">
+            <h3>What Can I Do Right Now?</h3>
+            <p className="modal-desc">Top 5 tasks by priority and urgency. Pick one and go.</p>
+            <div className="energy-buttons">
+              <button className={"energy-btn" + (suggestEnergy === 'all' ? " active" : "")} onClick={() => setSuggestEnergy('all')}>All</button>
+              <button className={"energy-btn" + (suggestEnergy === 'high' ? " active" : "")} onClick={() => setSuggestEnergy('high')}>I'm fresh</button>
+              <button className={"energy-btn" + (suggestEnergy === 'medium' ? " active" : "")} onClick={() => setSuggestEnergy('medium')}>Medium</button>
+              <button className={"energy-btn" + (suggestEnergy === 'low' ? " active" : "")} onClick={() => setSuggestEnergy('low')}>I'm fried</button>
+            </div>
+            {suggestions.length === 0 ? (
+              <div className="suggestion-empty">No open tasks matching that energy level.</div>
+            ) : (
+              suggestions.map(t => (
+                <div key={t.id} className={"suggestion-card" + (isOverdue(t) ? " overdue" : "")} onClick={() => {
+                  setShowSuggestModal(false);
+                  if (t.week) setSelectedWeek(t.week);
+                  setViewMode("week");
+                  setShowReviewMode(false);
+                  setEditingTask(t.id);
+                }}>
+                  <div className="suggestion-title">{t.title}</div>
+                  <div className="suggestion-meta">
+                    PRIO: {PRIORITY_LABELS[t.priority]} | ENERGY: {ENERGY_LABELS[t.energy]} | due {t.due || 'none'} | {t.estimate || 'no estimate'}
+                    {isOverdue(t) && ' | OVERDUE'}
+                  </div>
+                </div>
+              ))
+            )}
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShowSuggestModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target.className === 'modal-overlay') setShowSettingsModal(false); }}>
+          <div className="modal">
+            <h3>Settings</h3>
+            <p className="modal-desc">Your name appears when your team views your tasks. Weekly capacity is used to flag overloaded weeks in the team workload table.</p>
+            <div className="settings-field">
+              <label>Owner Name</label>
+              <input type="text" value={settingsOwner}
+                onChange={e => setSettingsOwner(e.target.value)}
+                placeholder="e.g. Jimenez" autoFocus />
+            </div>
+            <div className="settings-field">
+              <label>Weekly Capacity (hours)</label>
+              <input type="number" value={settingsCapacity} min="1" max="80"
+                onChange={e => setSettingsCapacity(parseInt(e.target.value) || 40)} />
+            </div>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShowSettingsModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => {
+                updateData(d => {
+                  d.meta.owner = settingsOwner;
+                  d.meta.weekly_capacity_hours = settingsCapacity;
+                });
+                setShowSettingsModal(false);
+                showToast("Settings saved");
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Confirm Modal */}
+      {showNewConfirm && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target.className === 'modal-overlay') setShowNewConfirm(false); }}>
+          <div className="modal">
+            <h3>Start New Task List?</h3>
+            <p className="modal-desc">You have unsaved changes. Starting a new list will discard them. Save first if you want to keep your current tasks.</p>
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setShowNewConfirm(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => {
+                setShowNewConfirm(false);
+                setData(blankData());
+                setOriginalFilename("");
+                setDirty(true);
+                setError("");
+                setSelectedWeek(currentISOWeek());
+                setViewMode("week");
+                setShowReviewMode(false);
+                setEditingTask(null);
+                showToast("Started new task list");
+              }}>Start New</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="toast">
+          {toast}
+          {toastAction && <button onClick={() => { toastAction.fn(); setToast(""); setToastAction(null); }}>Undo</button>}
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input type="file" ref={fileInputRef} style={{display:'none'}}
+        accept=".yaml,.yml" onChange={handleFilePick} />
+      {/* Hidden team file input (multi-file) */}
+      <input type="file" ref={teamFileInputRef} style={{display:'none'}}
+        accept=".yaml,.yml" multiple onChange={handleTeamFilePick} />
+
+      {/* Floating Stats HUD (F7) — hidden in Team view */}
+      {viewMode !== 'team' && data && (
+        <div className={hudCollapsed ? "stats-hud stats-hud-collapsed" : "stats-hud"}>
+          <div className="stats-hud-header" onClick={() => setHudCollapsed(!hudCollapsed)}>
+            <span className="stats-hud-week">{hudStats.week.split('-')[1]}</span>
+            <span className="stats-hud-toggle">{hudCollapsed ? '▸' : '▾'}</span>
+          </div>
+          {!hudCollapsed && (
+            <div className="stats-hud-stats">
+              <div className="stats-hud-row"><span className="stats-hud-label">Week</span><span className="stats-hud-val">{hudStats.week}</span></div>
+              <div className="stats-hud-row"><span className="stats-hud-label">Total</span><span className="stats-hud-val">{hudStats.total}</span></div>
+              <div className="stats-hud-row"><span className="stats-hud-label">Open</span><span className="stats-hud-val">{hudStats.open}</span></div>
+              <div className="stats-hud-row"><span className="stats-hud-label">Closed</span><span className="stats-hud-val stats-hud-closed">{hudStats.closed}</span></div>
+              <div className="stats-hud-row"><span className="stats-hud-label">Overdue</span><span className="stats-hud-val stats-hud-overdue">{hudStats.overdue}</span></div>
+              <div className="stats-hud-row"><span className="stats-hud-label">Threads (all)</span><span className="stats-hud-val stats-hud-threads">{hudStats.threads}</span></div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scroll-to-top button */}
+      {showScrollTop && (
+        <button className="scroll-top-btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="Scroll to top">
+          ↑
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ===== Delegated View Component =====
+function DelegatedView({
+  data, editingTask, setEditingTask, toggleTaskDone, deleteTask, updateTask, allWeeks,
+  knownEngineers, delegateTask, undelegateTask, exportDelegations,
+  setViewMode, setSelectedWeek, showToast
+}) {
+  const delegatedTasks = data.tasks.filter(t => t.delegated_to);
+  const receivedTasks = data.tasks.filter(t => t.delegated_by && !t.delegated_to);
+
+  // Group delegated tasks by engineer
+  const byEngineer = {};
+  delegatedTasks.forEach(t => {
+    if (!byEngineer[t.delegated_to]) byEngineer[t.delegated_to] = [];
+    byEngineer[t.delegated_to].push(t);
+  });
+
+  return (
+    <div className="delegated-container">
+      {/* Export section */}
+      <div className="delegated-section">
+        <h3>Delegation Queue</h3>
+        <p className="modal-desc">Tasks you've delegated to your team. Export per-engineer YAML files to send to them.</p>
+        {Object.keys(byEngineer).length === 0 && receivedTasks.length === 0 ? (
+          <div className="suggestion-empty">
+            No delegated tasks. Use the ▸ Edit button on any task to delegate it to an engineer.
+          </div>
+        ) : (
+          <>
+            {Object.entries(byEngineer).map(([engineer, tasks]) => (
+              <div key={engineer} className="delegated-engineer-group">
+                <div className="delegated-engineer-header">
+                  <h4>{engineer}</h4>
+                  <span className="task-meta-tag tag-project">{tasks.length} tasks</span>
+                  <button className="btn btn-small btn-primary"
+                    onClick={() => exportDelegations(engineer)}>
+                    Export YAML
+                  </button>
+                </div>
+                {tasks.map(t => (
+                  <TaskCard key={t.id} task={t} data={data}
+                    editingTask={editingTask} setEditingTask={setEditingTask}
+                    toggleTaskDone={toggleTaskDone} deleteTask={deleteTask}
+                    updateTask={updateTask} allWeeks={allWeeks}
+                    knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode="delegated" showToast={showToast}
+                  />
+                ))}
+              </div>
+            ))}
+
+            {/* Received tasks (delegated by someone else to you) */}
+            {receivedTasks.length > 0 && (
+              <div className="delegated-engineer-group">
+                <div className="delegated-engineer-header">
+                  <h4>Received from Others</h4>
+                  <span className="task-meta-tag tag-project">{receivedTasks.length} tasks</span>
+                </div>
+                {receivedTasks.map(t => (
+                  <TaskCard key={t.id} task={t} data={data}
+                    editingTask={editingTask} setEditingTask={setEditingTask}
+                    toggleTaskDone={toggleTaskDone} deleteTask={deleteTask}
+                    updateTask={updateTask} allWeeks={allWeeks}
+                    knownEngineers={knownEngineers} delegateTask={delegateTask} undelegateTask={undelegateTask}
+                          viewMode="delegated" showToast={showToast}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== Team View Component =====
+function TeamView({
+  teamData, teamWeekStart, setTeamWeekStart, teamSubView, setTeamSubView,
+  teamDragOver, handleTeamDragOver, handleTeamDragLeave, handleTeamDrop,
+  teamFileInputRef, handleTeamFilePick, removeEngineer, refreshTeam,
+  teamWeeks, workloadData, cellColorClass, teamExpandedCell, setTeamExpandedCell,
+  teamPriorityData, teamReviewData, currentWeek, onJumpToTask
+}) {
+  // ===== Empty state =====
+  if (teamData.length === 0) {
+    return (
+      <div className="team-container"
+        onDragOver={handleTeamDragOver} onDragLeave={handleTeamDragLeave} onDrop={handleTeamDrop}
+      >
+        <div className={"team-drop-zone" + (teamDragOver ? " dragover" : "")}
+          onClick={() => teamFileInputRef.current?.click()}
+        >
+          <h2>Team Viewer</h2>
+          <p>You haven't loaded any team files yet. Click "Load Team Files" above and select one or more .yaml task files to see everyone's workload at a glance.</p>
+          <div className="btn-group">
+            <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); teamFileInputRef.current?.click(); }}>Load Team Files</button>
+          </div>
+        </div>
+        <input type="file" ref={teamFileInputRef} style={{display:'none'}}
+          accept=".yaml,.yml" multiple onChange={handleTeamFilePick} />
+      </div>
+    );
+  }
+
+  // ===== Cell click handler (F8: includes subIdx) =====
+  const handleCellClick = (engIdx, subIdx, weekIdx, cellData) => {
+    if (cellData.count === 0) return;
+    const key = `${engIdx}-${subIdx}-${weekIdx}`;
+    if (teamExpandedCell && teamExpandedCell.key === key) {
+      setTeamExpandedCell(null);
+    } else {
+      setTeamExpandedCell({ key, engIdx, subIdx, weekIdx });
+    }
+  };
+
+  // ===== Render workload table =====
+  const renderWorkload = () => {
+    const cellBgVar = (colorClass) => {
+      if (colorClass === 'red-light') return 'var(--red-light)';
+      if (colorClass === 'yellow-light') return 'var(--yellow-light)';
+      if (colorClass === 'green-light') return 'var(--green-light)';
+      return 'transparent';
+    };
+
+    return (
+      <div>
+        {/* Week navigation */}
+        <div className="week-nav">
+          <button className="week-nav-btn" onClick={() => setTeamWeekStart(shiftWeek(teamWeekStart, -1))}>←</button>
+          <h2>{teamWeekStart}</h2>
+          <button className="week-nav-btn" onClick={() => setTeamWeekStart(shiftWeek(teamWeekStart, 1))}>→</button>
+          <button className="btn btn-small" onClick={() => setTeamWeekStart(shiftWeek(currentISOWeek(), -2))}>Today</button>
+        </div>
+
+        {/* Workload table */}
+        <table className="workload-table">
+          <thead>
+            <tr>
+              <th className="engineer-col">Engineer</th>
+              {teamWeeks.map(wk => (
+                <th key={wk} className={wk === currentWeek ? "week-col-current" : ""}>
+                  {wk.replace(/^\d{4}-W/, 'W')}<br/>
+                  <span style={{fontSize:'0.68rem', fontWeight:400}}>{weekToDateRange(wk)}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {workloadData.map((wd, engIdx) => (
+              <React.Fragment key={wd.owner}>
+                {wd.subRows.map((subRow, subIdx) => {
+                  const rowKey = `${engIdx}-${subIdx}`;
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <tr className={subRow.isDelegated ? 'workload-sub-row' : ''}>
+                        <td className="engineer-col">
+                          {subRow.isDelegated ? (
+                            <span style={{paddingLeft: 16, color: 'var(--ink-muted)'}}>→ {subRow.delegatedTo}</span>
+                          ) : (
+                            <>{wd.owner}<br/><span style={{fontSize:'0.68rem', color:'var(--ink-muted)', fontWeight:400}}>{wd.capacity}h cap</span></>
+                          )}
+                        </td>
+                        {subRow.cells.map((cell, weekIdx) => {
+                          const colorCls = cellColorClass(cell);
+                          const isCurrent = teamWeeks[weekIdx] === currentWeek;
+                          const isExpanded = teamExpandedCell && teamExpandedCell.key === `${engIdx}-${subIdx}-${weekIdx}`;
+                          const showFlag = cell.highPriorityCount > 2;
+                          const isEmpty = cell.totalCount === 0;
+                          const displayScore = cell.isPastWeek ? cell.totalScore : cell.score;
+                          return (
+                            <td key={weekIdx}
+                              className={`workload-cell${isEmpty ? ' workload-cell-empty' : ''}${isCurrent ? ' week-col-current' : ''}${cell.isPastWeek ? ' workload-cell-past' : ''}`}
+                              style={{ background: cellBgVar(colorCls) }}
+                              onClick={() => isEmpty ? null : handleCellClick(engIdx, subIdx, weekIdx, cell)}>
+                              {!isEmpty ? (
+                                <>
+                                  <span className="workload-score" style={cell.isPastWeek && cell.completedCount > 0 ? {color: 'var(--ink-secondary)'} : {}}>{displayScore}</span>
+                                  {showFlag && <span className="workload-flag">▲</span>}
+                                  <span className="workload-count">
+                                    {cell.isPastWeek && cell.completedCount > 0
+                                      ? `${cell.count} active + ${cell.completedCount} done`
+                                      : `${cell.count} tasks`}
+                                  </span>
+                                </>
+                              ) : (
+                                <span style={{color:'var(--ink-faint)'}}>—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {/* Drill-down for this sub-row (F8) */}
+                      {teamExpandedCell && teamExpandedCell.engIdx === engIdx && teamExpandedCell.subIdx === subIdx && (
+                        <tr className="workload-drill-row" key={`drill-${engIdx}-${subIdx}-${teamExpandedCell.weekIdx}`}>
+                          <td colSpan={teamWeeks.length + 1} className={(() => {
+                            const cell = subRow.cells[teamExpandedCell.weekIdx];
+                            const cc = cellColorClass(cell);
+                            if (cc === 'red-light') return 'drill-red';
+                            if (cc === 'yellow-light') return 'drill-yellow';
+                            if (cc === 'green-light') return 'drill-green';
+                            return '';
+                          })()}>
+                            <div style={{fontWeight:600, marginBottom:8, fontSize:'0.85rem'}}>
+                              {subRow.label} — {teamWeeks[teamExpandedCell.weekIdx]} ({weekToDateRange(teamWeeks[teamExpandedCell.weekIdx])})
+                            </div>
+                            {subRow.cells[teamExpandedCell.weekIdx].tasks.map(t => {
+                              const projName = teamData[engIdx].data.projects.find(p => p.id === t.project)?.name || t.project || '';
+                              const overdue = isOverdue(t);
+                              const isDelegated = !!t.delegated_to;
+                              const isReceived = !!t.delegated_by && !t.delegated_to;
+                              return (
+                                <div key={t.id} className={"drill-task" + (isDelegated || isReceived ? " drill-task-delegated" : "")}>
+                                  <div style={{flex:1}}>
+                                    <div className="drill-task-title">{t.title}</div>
+                                    <div className="drill-task-meta">
+                                      <span className={"task-meta-tag tag-priority-" + (t.priority || 'low')}>{PRIORITY_LABELS[t.priority] || 'LOW'}</span>
+                                      <span className={"task-meta-tag tag-status-" + t.status}>{STATUS_LABELS[t.status] || t.status}</span>
+                                      {t.due && <span className={"task-meta-tag " + (overdue ? "tag-due-overdue" : "tag-due")}>due {t.due}</span>}
+                                      {projName && <span className="task-meta-tag tag-project">{projName}</span>}
+                                      {isDelegated && <span className="task-meta-tag tag-delegated">DELEGATED → {t.delegated_to}</span>}
+                                      {isReceived && <span className="task-meta-tag tag-delegated-by">FROM: {t.delegated_by}</span>}
+                                    </div>
+                                  </div>
+                                  {(isDelegated || isReceived) && onJumpToTask && (
+                                    <button className="btn btn-small" onClick={() => onJumpToTask(t)}
+                                      title="Jump to this task in Planned view">→ View</button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Legend */}
+        <div className="workload-legend">
+          <span className="workload-legend-item"><span className="workload-legend-swatch" style={{background:'var(--green-light)'}}></span> healthy (≤12)</span>
+          <span className="workload-legend-item"><span className="workload-legend-swatch" style={{background:'var(--yellow-light)'}}></span> approaching (&gt;12)</span>
+          <span className="workload-legend-item"><span className="workload-legend-swatch" style={{background:'var(--red-light)'}}></span> overloaded (&gt;16)</span>
+          <span className="workload-legend-item"><span style={{color:'var(--red)', fontWeight:700}}>▲</span> priority concentration (&gt;2 crit/high)</span>
+        </div>
+      </div>
+    );
+  };
+
+  // ===== Render priority cross-cut =====
+  const renderPriority = () => {
+    const priorityOrder = ['critical', 'high', 'medium', 'low'];
+    return (
+      <div>
+        {priorityOrder.map(prio => {
+          const tasks = teamPriorityData[prio] || [];
+          if (tasks.length === 0) return null;
+          return (
+            <div key={prio} className="priority-section">
+              <h3>{PRIORITY_LABELS[prio]}
+                <span className="review-count" style={{
+                  background: prio === 'critical' ? 'var(--red)' : prio === 'high' ? 'var(--orange)' : prio === 'medium' ? 'var(--yellow)' : 'var(--ink-muted)'
+                }}>{tasks.length}</span>
+              </h3>
+              {tasks.map(t => {
+                const overdue = isOverdue(t);
+                return (
+                  <div key={`${t.engineer}-${t.id}`} className="priority-row">
+                    <div className="priority-row-title">{t.title}</div>
+                    <div className="priority-row-meta">
+                      <span style={{fontSize:'0.75rem', color:'var(--ink-muted)', fontWeight:600}}>{t.engineer}</span>
+                      {t.due && <span className={"task-meta-tag " + (overdue ? "tag-due-overdue" : "tag-due")}>due {t.due}</span>}
+                      {t.projectName && <span className="task-meta-tag tag-project">{t.projectName}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        {priorityOrder.every(p => (teamPriorityData[p] || []).length === 0) && (
+          <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'20px'}}>No active tasks across team.</p>
+        )}
+      </div>
+    );
+  };
+
+  // ===== Render team review =====
+  const renderTeamReview = () => {
+    const { blocked, stale, upcoming, overloaded } = teamReviewData;
+    return (
+      <div>
+        {/* Blocked */}
+        <div className="team-review-section">
+          <h3>Blocked <span className="review-count" style={{background:'var(--red)'}}>{blocked.length}</span></h3>
+          {blocked.length === 0 ? (
+            <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No blocked tasks across team.</p>
+          ) : (
+            blocked.map(t => (
+              <div key={`${t.engineer}-${t.id}`} className="team-review-entry">
+                <div style={{fontWeight:600}}>{t.title}</div>
+                <div style={{fontSize:'0.78rem', color:'var(--ink-muted)', marginTop:3}}>
+                  <strong>{t.engineer}</strong>
+                  {t.projectName && ` · ${t.projectName}`}
+                </div>
+                {t.notes && <div style={{fontSize:'0.78rem', color:'var(--ink-muted)', marginTop:3, fontStyle:'italic'}}>{t.notes}</div>}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Stale */}
+        <div className="team-review-section">
+          <h3>Stale (7+ days) <span className="review-count" style={{background:'var(--orange)'}}>{stale.length}</span></h3>
+          {stale.length === 0 ? (
+            <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No stale tasks across team.</p>
+          ) : (
+            stale.map(t => (
+              <div key={`${t.engineer}-${t.id}`} className="team-review-entry">
+                <div style={{fontWeight:600}}>{t.title}</div>
+                <div style={{fontSize:'0.78rem', color:'var(--ink-muted)', marginTop:3}}>
+                  <strong>{t.engineer}</strong>
+                  <span className={"task-meta-tag " + (t.veryStale ? "tag-very-stale" : "tag-stale")} style={{marginLeft:6}}>{t.daysOld}d old</span>
+                  {t.projectName && ` · ${t.projectName}`}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Overloaded Weeks */}
+        <div className="team-review-section">
+          <h3>Overloaded Weeks <span className="review-count" style={{background:'var(--red)'}}>{overloaded.length}</span></h3>
+          {overloaded.length === 0 ? (
+            <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No overloaded weeks.</p>
+          ) : (
+            overloaded.map((o, i) => (
+              <div key={i} className="team-review-entry">
+                <strong>{o.engineer}</strong> — {o.week}: score {o.score}
+                <span className="task-meta-tag" style={{
+                  marginLeft: 8,
+                  background: o.level === 'RED' ? 'var(--red-light)' : 'var(--yellow-light)',
+                  color: o.level === 'RED' ? 'var(--red)' : 'var(--yellow)'
+                }}>{o.level}</span>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Upcoming Deadlines */}
+        <div className="team-review-section">
+          <h3>Upcoming Deadlines (7 days) <span className="review-count" style={{background:'var(--blue)'}}>{upcoming.length}</span></h3>
+          {upcoming.length === 0 ? (
+            <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No upcoming deadlines.</p>
+          ) : (
+            upcoming.map(t => (
+              <div key={`${t.engineer}-${t.id}`} className="team-review-entry">
+                <div style={{fontWeight:600}}>{t.title}</div>
+                <div style={{fontSize:'0.78rem', color:'var(--ink-muted)', marginTop:3}}>
+                  <strong>{t.engineer}</strong>
+                  <span className="task-meta-tag tag-due" style={{marginLeft:6}}>due {t.due}</span>
+                  {t.projectName && ` · ${t.projectName}`}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="team-container"
+      onDragOver={handleTeamDragOver} onDragLeave={handleTeamDragLeave} onDrop={handleTeamDrop}
+    >
+      {/* Engineer chips */}
+      <div className="team-sub-header">
+        <div className="engineer-chips">
+          {teamData.map((td, idx) => (
+            <span key={idx} className="engineer-chip">
+              {td.owner}
+              <button className="engineer-chip-remove" onClick={() => removeEngineer(idx)}>×</button>
+            </span>
+          ))}
+        </div>
+        <button className="btn btn-small" onClick={() => teamFileInputRef.current?.click()}>+ Load Team Files</button>
+        <button className="btn btn-small" onClick={refreshTeam} title="Reload team data from current task list">↻ Refresh</button>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="sub-tabs">
+        <div className={"sub-tab" + (teamSubView === 'workload' ? " active" : "")} onClick={() => setTeamSubView('workload')}>Workload</div>
+        <div className={"sub-tab" + (teamSubView === 'priority' ? " active" : "")} onClick={() => setTeamSubView('priority')}>Priority</div>
+        <div className={"sub-tab" + (teamSubView === 'review' ? " active" : "")} onClick={() => setTeamSubView('review')}>Review</div>
+      </div>
+
+      {/* Sub-view content */}
+      {teamSubView === 'workload' && renderWorkload()}
+      {teamSubView === 'priority' && renderPriority()}
+      {teamSubView === 'review' && renderTeamReview()}
+
+      <input type="file" ref={teamFileInputRef} style={{display:'none'}}
+        accept=".yaml,.yml" multiple onChange={handleTeamFilePick} />
+    </div>
+  );
+}
+
+// ===== Review Mode Component =====
+function ReviewMode({ reviewData, data, allWeeks, selectedWeek, bragExportText, copyBragToClipboard, toggleTaskDone, deleteTask, updateTask, updateData, setShowReviewMode, showToast }) {
+  const nextWeek = shiftWeek(currentISOWeek(), 1);
+  return (
+    <div>
+      <div className="header" style={{marginBottom:'12px'}}>
+        <h1>Weekly Review</h1>
+        <div className="header-actions">
+          <button className="btn btn-primary" onClick={() => {
+            updateData(d => { d.meta.last_review = todayStr(); });
+            setShowReviewMode(false);
+            showToast("Review complete — last_review updated");
+          }}>✓ Complete Review</button>
+          <button className="btn" onClick={() => setShowReviewMode(false)}>← Back</button>
+        </div>
+      </div>
+
+      {/* Done This Week */}
+      <div className="review-section">
+        <h3>Completed <span className="review-count" style={{background:'var(--green)'}}>{reviewData.doneThisWeek.length}</span></h3>
+        {reviewData.doneThisWeek.length === 0 ? (
+          <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>Nothing completed yet this week.</p>
+        ) : (
+          reviewData.doneThisWeek.map(t => (
+            <div key={t.id} className="task-card done">
+              <div className="task-checkbox checked" onClick={() => toggleTaskDone(t.id)}></div>
+              <div className="task-body">
+                <div className="task-title">{t.title}</div>
+              </div>
+            </div>
+          ))
+        )}
+        {reviewData.doneThisWeek.length > 0 && (
+          <div className="brag-export" style={{marginTop:'12px'}}>
+            <h3>Brag Log — Copy for 1:1s</h3>
+            <pre>{bragExportText}</pre>
+            <button className="copy-btn" onClick={copyBragToClipboard}>Copy to clipboard</button>
+          </div>
+        )}
+      </div>
+
+      {/* Stale Tasks */}
+      <div className="review-section">
+        <h3>Stale Tasks (7+ days, no progress) <span className="review-count" style={{background:'var(--orange)'}}>{reviewData.stale.length}</span></h3>
+        {reviewData.stale.length === 0 ? (
+          <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No stale tasks. You're on top of things.</p>
+        ) : (
+          reviewData.stale.map(t => (
+            <div key={t.id} className={"task-card " + (isVeryStale(t) ? "very-stale" : "stale")}>
+              <div className="task-checkbox" onClick={() => toggleTaskDone(t.id)}></div>
+              <div className="task-body">
+                <div className="task-title">{t.title}</div>
+                <div className="task-meta">
+                  <span className={"task-meta-tag " + (isVeryStale(t) ? "tag-very-stale" : "tag-stale")}>{daysSince(t.last_touched || t.created)}d old</span>
+                  <span className={"task-meta-tag tag-priority-" + (t.priority || 'low')}>{PRIORITY_LABELS[t.priority] || 'LOW'}</span>
+                  {t.project && <span className="task-meta-tag tag-project">{data.projects.find(p => p.id === t.project)?.name || t.project}</span>}
+                  {t.due && <span className={"task-meta-tag " + (isOverdue(t) ? "tag-due-overdue" : "tag-due")}>due {t.due}</span>}
+                </div>
+                <div className="review-task-actions">
+                  <select value={t.week || ""} onChange={e => updateTask(t.id, 'week', e.target.value || null)}>
+                    <option value="">Assign to week...</option>
+                    {allWeeks.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                  <button className="btn btn-small" onClick={() => { updateTask(t.id, 'week', nextWeek); showToast(`${t.id} → ${nextWeek}`); }}>Next Week</button>
+                  <button className="btn btn-small" onClick={() => { updateTask(t.id, 'status', 'deferred'); showToast(`${t.id} deferred`); }}>Defer</button>
+                  <button className="btn btn-small btn-danger" onClick={() => deleteTask(t.id)}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Unassigned Tasks */}
+      <div className="review-section">
+        <h3>Unassigned Tasks (no week) <span className="review-count">{reviewData.unassigned.length}</span></h3>
+        {reviewData.unassigned.length === 0 ? (
+          <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>All tasks assigned to a week.</p>
+        ) : (
+          reviewData.unassigned.map(t => (
+            <div key={t.id} className="task-card">
+              <div className="task-checkbox" onClick={() => toggleTaskDone(t.id)}></div>
+              <div className="task-body">
+                <div className="task-title">{t.title}</div>
+                <div className="task-meta">
+                  <span className={"task-meta-tag tag-priority-" + (t.priority || 'low')}>{PRIORITY_LABELS[t.priority] || 'LOW'}</span>
+                                   </div>
+                <div className="review-task-actions">
+                  <select value="" onChange={e => { if (e.target.value) updateTask(t.id, 'week', e.target.value); }}>
+                    <option value="">Assign to week...</option>
+                    {allWeeks.map(w => <option key={w} value={w}>{w}</option>)}
+                  </select>
+                  <button className="btn btn-small" onClick={() => { updateTask(t.id, 'week', nextWeek); showToast(`${t.id} → ${nextWeek}`); }}>Next Week</button>
+                  <button className="btn btn-small" onClick={() => { updateTask(t.id, 'status', 'deferred'); showToast(`${t.id} deferred`); }}>Defer</button>
+                  <button className="btn btn-small btn-danger" onClick={() => deleteTask(t.id)}>Delete</button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Blocked Tasks */}
+      <div className="review-section">
+        <h3>Blocked <span className="review-count" style={{background:'var(--red)'}}>{reviewData.blocked.length}</span></h3>
+        {reviewData.blocked.length === 0 ? (
+          <p style={{color:'var(--ink-muted)', fontStyle:'italic', padding:'8px 0'}}>No blocked tasks. Flow state.</p>
+        ) : (
+          reviewData.blocked.map(t => (
+            <div key={t.id} className="task-card blocked">
+              <div className="task-checkbox" onClick={() => toggleTaskDone(t.id)}></div>
+              <div className="task-body">
+                <div className="task-title">{t.title}</div>
+                {t.notes && <div className="task-notes">{t.notes}</div>}
+                <div className="review-task-actions">
+                  <button className="btn btn-small" onClick={() => updateTask(t.id, 'status', 'open')}>Unblock</button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== Task Card Component =====
+function TaskCard({ task, data, editingTask, setEditingTask, toggleTaskDone, deleteTask, updateTask, allWeeks, knownEngineers, delegateTask, undelegateTask, isCarryover, isThread, viewMode, showToast }) {
+  const isEditing = editingTask === task.id;
+  const stale = isStale(task);
+  const veryStale = isVeryStale(task);
+  const overdue = isOverdue(task);
+
+  // Pending fields — all edit form values staged locally, committed on Done (F4)
+  const [pendingFields, setPendingFields] = useState({});
+  // Ref for notes textarea auto-fit (F6)
+  const notesRef = useRef(null);
+
+  // Sync pending fields when edit mode opens or task changes while editing
+  useEffect(() => {
+    if (isEditing) {
+      setPendingFields({
+        title: task.title || '',
+        project: task.project || '',
+        priority: task.priority || '',
+        status: task.status || '',
+        energy: task.energy || '',
+        due: task.due || '',
+        week: task.week || '',
+        context: task.context || '',
+        estimate: task.estimate || '',
+        notes: task.notes || '',
+        delegated_to: task.delegated_to || ''
+      });
+    }
+  }, [isEditing, task]);
+
+  // Auto-fit notes textarea on edit open and content change (F6)
+  useEffect(() => {
+    if (isEditing && notesRef.current) {
+      const ta = notesRef.current;
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    }
+  }, [isEditing, pendingFields.notes, task.notes]);
+
+  let cardClass = "task-card";
+  if (isCarryover) cardClass += " carryover";
+  else if (task.delegated_to) cardClass += " delegated";
+  else if (task.status === 'done') cardClass += " done";
+  else if (task.status === 'blocked') cardClass += " blocked";
+  else if (task.status === 'thread') cardClass += " thread";
+  else if (veryStale) cardClass += " very-stale";
+  else if (stale) cardClass += " stale";
+
+  // Edit form field order for Tab cycling
+  const editFields = [
+    { key: 'title', type: 'text', label: 'Title', full: true },
+    { key: 'project', type: 'select', label: 'Project', options: [...(data.projects || [])].sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || '')), optLabel: 'No project' },
+    { key: 'priority', type: 'select-labels', label: 'Priority', labels: PRIORITY_LABELS },
+    { key: 'status', type: 'select-labels', label: 'Status', labels: STATUS_LABELS },
+    { key: 'energy', type: 'select-labels', label: 'Energy', labels: ENERGY_LABELS },
+    { key: 'due', type: 'date', label: 'Due Date' },
+    { key: 'week', type: 'select-weeks', label: 'Week', weeks: allWeeks },
+    { key: 'context', type: 'select-labels', label: 'Context', labels: CONTEXT_LABELS },
+    { key: 'estimate', type: 'text', label: 'Estimate' },
+    { key: 'notes', type: 'textarea', label: 'Notes', full: true },
+    { key: 'delegate', type: 'delegate', label: 'Delegate to', full: true },
+  ];
+
+  const handleTabKey = useCallback((e) => {
+    e.preventDefault();
+    const fieldIds = editFields.map(f => `edit-${task.id}-${f.key}`);
+    const currentIdx = fieldIds.indexOf(e.target.id);
+    const nextIdx = (currentIdx + 1) % fieldIds.length;
+    const nextEl = document.getElementById(fieldIds[nextIdx]);
+    if (nextEl) nextEl.focus();
+  }, [editFields, task.id]);
+
+  if (isEditing) {
+    return (
+      <div className="task-edit">
+        <div className="task-edit-grid">
+          {editFields.map((f, i) => (
+            <div key={f.key} className={"task-edit-field" + (f.full ? " task-edit-full" : "")}>
+              <label>{f.label}</label>
+              {f.type === 'text' && (
+                <input type="text" id={`edit-${task.id}-${f.key}`} value={pendingFields[f.key] ?? task[f.key] ?? ""}
+                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}
+                  autoFocus={i === 0} />
+              )}
+              {f.type === 'date' && (
+                <input type="date" id={`edit-${task.id}-${f.key}`} value={pendingFields[f.key] ?? task[f.key] ?? ""}
+                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value || null}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }} />
+              )}
+              {f.type === 'textarea' && (
+                <textarea id={`edit-${task.id}-${f.key}`} ref={notesRef}
+                  value={pendingFields[f.key] ?? task[f.key] ?? ""}
+                  placeholder="Additional context..."
+                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}
+                  style={{minHeight:'40px', resize:'vertical'}} />
+              )}
+              {f.type === 'select' && (
+                <select id={`edit-${task.id}-${f.key}`} value={pendingFields[f.key] ?? task[f.key] ?? ""}
+                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value || null}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}>
+                  <option value="">{f.optLabel}</option>
+                  {f.options.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              )}
+              {f.type === 'select-labels' && (
+                <select id={`edit-${task.id}-${f.key}`} value={pendingFields[f.key] ?? task[f.key] ?? ""}
+                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}>
+                  {Object.entries(f.labels).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              )}
+              {f.type === 'select-weeks' && (
+                <select id={`edit-${task.id}-${f.key}`} value={pendingFields.week ?? ''}
+                  onChange={e => setPendingFields(prev => ({...prev, week: e.target.value}))}
+                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}>
+                  <option value="">No week</option>
+                  {f.weeks.map(w => <option key={w} value={w}>{w}</option>)}
+                </select>
+              )}
+              {f.type === 'delegate' && (
+                <div className="delegate-field">
+                  <input type="text" id={`edit-${task.id}-${f.key}`}
+                    value={pendingFields.delegated_to ?? ''}
+                    onChange={e => setPendingFields(prev => ({...prev, delegated_to: e.target.value}))}
+                    onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }}
+                    placeholder="Engineer name (or leave empty)"
+                    list="known-engineers-list" />
+                  <datalist id="known-engineers-list">
+                    {knownEngineers.map(e => <option key={e} value={e} />)}
+                  </datalist>
+                  {task.delegated_to && (
+                    <button className="btn btn-small" onClick={() => setPendingFields(prev => ({...prev, delegated_to: ''}))}
+                      title="Clear delegation">Clear</button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="task-edit-actions">
+          <button className="btn btn-small" onClick={() => {
+            // Commit all changed fields (F4)
+            Object.keys(pendingFields).forEach(key => {
+              const newVal = pendingFields[key];
+              const oldVal = task[key] || '';
+              if (newVal !== oldVal) {
+                if (key === 'delegated_to') {
+                  if (newVal && newVal.trim()) {
+                    delegateTask(task.id, newVal.trim());
+                  } else if (task.delegated_to) {
+                    undelegateTask(task.id);
+                  }
+                } else {
+                  updateTask(task.id, key, newVal || null);
+                }
+              }
+            });
+            setEditingTask(null);
+          }}>Done</button>
+          <button className="btn btn-small btn-danger" onClick={() => deleteTask(task.id)}>Delete</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cardClass}>
+      <div className={"task-checkbox" + (task.status === 'done' ? " checked" : "")}
+        onClick={() => toggleTaskDone(task.id)}></div>
+      <div className="task-body">
+        <div className="task-title">{task.title}</div>
+        <div className="task-meta">
+          <span className={"task-meta-tag tag-priority-" + (task.priority || 'low')} title="Priority">
+            PRIO: {PRIORITY_LABELS[task.priority] || 'LOW'}
+          </span>
+          {task.status !== 'open' && task.status !== 'done' && (
+            <span className={"task-meta-tag tag-status-" + task.status}>{STATUS_LABELS[task.status]}</span>
+          )}
+          <span className={"task-meta-tag tag-energy-" + (task.energy || 'medium')} title="Energy level">
+            ENERGY: {ENERGY_LABELS[task.energy] || 'MED'}
+          </span>
+          {task.project && (
+            <span className="task-meta-tag tag-project">
+              {data.projects.find(p => p.id === task.project)?.name || task.project}
+            </span>
+          )}
+          {/* Week flair badge (F6) — show Wxx on non-carryover cards */}
+          {task.week && !isCarryover && (
+            <span className="task-meta-tag tag-week" title={`Planned for ${task.week}`}>
+              {task.week.split('-')[1]}
+            </span>
+          )}
+          {isCarryover && task.week && (
+            <span className="task-meta-tag tag-carryover" title={`Originally planned for ${task.week}`}>
+              PLANNED: {task.week}
+            </span>
+          )}
+          {task.due && (
+            <span className={"task-meta-tag " + (overdue ? "tag-due-overdue" : "tag-due")}>
+              {overdue ? '! ' : ''}due {task.due}
+            </span>
+          )}
+          {task.estimate && <span className="task-meta-tag tag-project">{task.estimate}</span>}
+          {task.delegated_to && (
+            <span className="task-meta-tag tag-delegated" title={`Delegated to ${task.delegated_to}${task.delegation_date ? ' on ' + task.delegation_date : ''}`}>
+              DELEGATED → {task.delegated_to}
+            </span>
+          )}
+          {task.delegated_by && !task.delegated_to && (
+            <span className="task-meta-tag tag-delegated-by" title={`Delegated by ${task.delegated_by}`}>
+              FROM: {task.delegated_by}
+            </span>
+          )}
+          {stale && <span className={"task-meta-tag " + (veryStale ? "tag-very-stale" : "tag-stale")}>{daysSince(task.last_touched || task.created)}d old</span>}
+        </div>
+        {task.notes && <div className="task-notes">{task.notes}</div>}
+      </div>
+      <div className="task-actions">
+        <button className="task-action-btn" onClick={() => setEditingTask(task.id)}>▸ Edit</button>
+        {viewMode === 'week' && task.status !== 'done' && task.status !== 'deferred' && (
+          <>
+            <button className="task-action-btn quick-push" title="Push to next week"
+              onClick={() => { const nw = weekOffset(task.week, 1); updateTask(task.id, 'week', nw); if (showToast) showToast(`Pushed to ${nw}`); }}>+1W</button>
+            <button className="task-action-btn quick-push" title="Push two weeks out"
+              onClick={() => { const nw = weekOffset(task.week, 2); updateTask(task.id, 'week', nw); if (showToast) showToast(`Pushed to ${nw}`); }}>+2W</button>
+          </>
+        )}
+        <button className="task-action-btn danger" onClick={() => deleteTask(task.id)}>×</button>
+      </div>
+    </div>
+  );
+}
+
+// ===== Render =====
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+      .catch(err => console.log('[PWA] SW registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
