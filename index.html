@@ -794,14 +794,87 @@ body {
 .theme-matrix .stats-hud-overdue { color: var(--red); }
 .theme-matrix .stats-hud-threads { color: var(--purple); }
 
+/* Mobile Bottom Nav + Header Menu */
+.bottom-nav { display: none; }
+.more-menu-dropdown {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); box-shadow: var(--shadow-lg);
+  padding: 8px; display: none; flex-direction: column; gap: 4px;
+  z-index: 1001; min-width: 180px;
+}
+.more-menu-dropdown.open { display: flex; }
+.more-menu-dropdown .btn { width: 100%; text-align: left; }
+.btn-mobile-only { display: none; }
+.btn-desktop-only { display: inline-flex; }
+
 /* Responsive */
 @media (max-width: 700px) {
+  /* Bottom nav replaces top tabs */
+  .bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 1000; padding-bottom: env(safe-area-inset-bottom);
+    justify-content: space-around;
+  }
+  .bottom-nav-btn {
+    flex: 1; padding: 8px 4px; text-align: center; font-size: 0.68rem;
+    font-weight: 600; color: var(--ink-muted); cursor: pointer;
+    border: none; background: none; min-height: 50px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .bottom-nav-btn.active { color: var(--accent); }
+  .bottom-nav-btn .nav-icon { font-size: 1rem; font-family: var(--font-mono); font-weight: 700; }
+
+  /* Hide top view tabs on mobile */
+  .view-tabs { display: none; }
+
+  /* App padding for bottom nav + safe area */
+  .app { padding: 12px 12px calc(68px + env(safe-area-inset-bottom)); }
+
+  /* Compact header */
+  .header { padding: 10px 14px; position: relative; }
+  .header h1 { font-size: 1rem; }
+  .header-actions { gap: 4px; }
+  .header-actions .btn { padding: 6px 10px; font-size: 0.75rem; }
+
+  /* Show mobile-only buttons, hide desktop-only */
+  .btn-mobile-only { display: inline-flex; }
+  .btn-desktop-only { display: none; }
+
+  /* Reposition floating elements above bottom nav */
+  .stats-hud { display: none !important; }
+  .scroll-top-btn { bottom: calc(72px + env(safe-area-inset-bottom)) !important; right: 12px; }
+
+  /* Quick add full width fields */
+  .quick-add { padding: 10px 12px; }
   .quick-add-row { flex-direction: column; }
+  .quick-add-field { width: 100%; }
+  .quick-add-task-field { min-width: 0; }
+  .quick-add-buttons { align-self: stretch; flex-direction: row; margin-bottom: 4px; }
+  .quick-add-buttons .btn { flex: 1; }
+
+  /* Compact stats and filters */
+  .stats-bar { gap: 10px; font-size: 0.72rem; padding: 8px 12px; }
+  .filter-bar { gap: 6px; padding: 6px 10px; }
+  .filter-bar select { font-size: 0.72rem; padding: 4px 8px; }
+  .filter-bar label { font-size: 0.68rem; }
+
+  /* Task cards */
+  .task-card { padding: 10px 12px; }
   .task-edit-grid { grid-template-columns: 1fr 1fr; }
-  .header h1 { font-size: 1.1rem; }
-  .week-stats { width: 100%; }
-  .workload-table { font-size: 0.72rem; }
-  .workload-table th, .workload-table td { padding: 4px 6px; }
+
+  /* Week nav */
+  .week-nav { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+
+  /* Workload table */
+  .workload-table { font-size: 0.68rem; }
+  .workload-table th, .workload-table td { padding: 4px 4px; }
+  .workload-table th.engineer-col, .workload-table td.engineer-col { min-width: 80px; }
+
+  /* Modals fit screen */
+  .modal-overlay { padding: 12px; align-items: flex-end; }
+  .modal { max-height: 85vh; overflow-y: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; }
 }
 </style>
 </head>
@@ -1242,6 +1315,7 @@ function App() {
   const [settingsOwner, setSettingsOwner] = useState('');
   const [settingsCapacity, setSettingsCapacity] = useState(40);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [collapsedProjects, setCollapsedProjects] = useState(() => {
     try { return JSON.parse(localStorage.getItem('task-manager-collapsed-projects') || '{}'); }
     catch { return {}; }
@@ -1656,6 +1730,18 @@ function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [editingTask, showSuggestModal, showReviewMode, showSettingsModal, showNewConfirm, teamExpandedCell, data]);
+
+  // Close mobile menu on outside click
+  useEffect(() => {
+    if (!showMobileMenu) return;
+    const handler = (e) => {
+      if (!e.target.closest('.more-menu-dropdown') && !e.target.closest('.btn-mobile-only')) {
+        setShowMobileMenu(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [showMobileMenu]);
 
   // Ref to latest handleSave for keyboard handler
   const handleSaveRef = useRef(null);
@@ -2327,22 +2413,32 @@ function App() {
       <div className="header">
         <h1>Task Manager</h1>
         <div className="header-actions">
-          {dirty && <span className="dirty-badge">Unsaved Changes</span>}
-          <button className="btn" onClick={() => fileInputRef.current?.click()}>Load</button>
-          <button className="btn" onClick={handleNew}>New</button>
-          <button className="btn" onClick={() => setShowReviewMode(true)}>Review</button>
+          {dirty && <span className="dirty-badge">Unsaved</span>}
+          <button className="btn btn-desktop-only" onClick={() => fileInputRef.current?.click()}>Load</button>
+          <button className="btn btn-desktop-only" onClick={handleNew}>New</button>
+          <button className="btn btn-desktop-only" onClick={() => setShowReviewMode(true)}>Review</button>
           <button className="btn" onClick={() => setShowSuggestModal(true)}>What Now?</button>
           <button className="btn btn-small btn-theme" onClick={() => setTheme(t => t === 'industrial' ? 'matrix' : 'industrial')}
             title={theme === 'industrial' ? 'Switch to Matrix theme' : 'Switch to Industrial Workshop theme'}>
             {theme === 'industrial' ? '◐' : '◑'}
           </button>
-          <button className="btn btn-small" onClick={() => { setSettingsOwner(data.meta?.owner || ''); setSettingsCapacity(data.meta?.weekly_capacity_hours || 40); setShowSettingsModal(true); }}
+          <button className="btn btn-small btn-desktop-only" onClick={() => { setSettingsOwner(data.meta?.owner || ''); setSettingsCapacity(data.meta?.weekly_capacity_hours || 40); setShowSettingsModal(true); }}
             title="Settings: owner name and weekly capacity">
             ⚙
           </button>
           <button className={"btn btn-primary" + (showSettingsModal || showSuggestModal || showNewConfirm ? " btn-disabled" : "")}
             onClick={handleSave}
             disabled={showSettingsModal || showSuggestModal || showNewConfirm}>Save</button>
+          {/* Mobile overflow menu */}
+          <div style={{position:'relative'}} className="btn-mobile-only">
+            <button className="btn btn-small" onClick={() => setShowMobileMenu(v => !v)} title="More">⋮</button>
+            <div className={"more-menu-dropdown" + (showMobileMenu ? " open" : "")}>
+              <button className="btn" onClick={() => { setShowMobileMenu(false); fileInputRef.current?.click(); }}>Load</button>
+              <button className="btn" onClick={() => { setShowMobileMenu(false); handleNew(); }}>New</button>
+              <button className="btn" onClick={() => { setShowMobileMenu(false); setShowReviewMode(true); }}>Review</button>
+              <button className="btn" onClick={() => { setShowMobileMenu(false); setSettingsOwner(data.meta?.owner || ''); setSettingsCapacity(data.meta?.weekly_capacity_hours || 40); setShowSettingsModal(true); }}>Settings</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2929,6 +3025,22 @@ function App() {
           ↑
         </button>
       )}
+
+      {/* Mobile Bottom Nav */}
+      <div className="bottom-nav">
+        <button className={"bottom-nav-btn" + (viewMode === "week" ? " active" : "")} onClick={() => { setViewMode("week"); setShowReviewMode(false); }}>
+          <span className="nav-icon">P</span>Planned
+        </button>
+        <button className={"bottom-nav-btn" + (viewMode === "project" ? " active" : "")} onClick={() => { setViewMode("project"); setShowReviewMode(false); }}>
+          <span className="nav-icon">Pr</span>Project
+        </button>
+        <button className={"bottom-nav-btn" + (viewMode === "delegated" ? " active" : "")} onClick={() => { setViewMode("delegated"); setShowReviewMode(false); }}>
+          <span className="nav-icon">D</span>Delegated
+        </button>
+        <button className={"bottom-nav-btn" + (viewMode === "team" ? " active" : "")} onClick={() => { setViewMode("team"); setShowReviewMode(false); }}>
+          <span className="nav-icon">T</span>Team
+        </button>
+      </div>
     </div>
   );
 }
