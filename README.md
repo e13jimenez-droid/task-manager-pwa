@@ -23,6 +23,9 @@ GitHub Pages. Push to `main`, enable Pages in repo settings → Source: main / r
 
 ## Current Status
 
-- v6.12 clean copy — no mobile UX changes yet (pass 2)
-- PWA scaffolding complete (manifest, SW, icons, meta tags)
-- Ready for GitHub Pages deploy
+- v6.12 clean copy + Pass 2 mobile UX
+- PWA scaffolding: manifest, service worker, icons, meta tags, SW registration
+- Mobile UX: bottom nav bar, header overflow menu, safe area insets, HUD hidden on mobile, responsive breakpoints, modal slide-up
+- Desktop layout unchanged — all mobile changes gated behind @media (max-width: 700px)
+- Live on GitHub Pages: https://e13jimenez-droid.github.io/task-manager-pwa/
+- Browser-verified: 0 console errors, mobile + desktop layouts confirmed

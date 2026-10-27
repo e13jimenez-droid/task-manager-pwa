@@ -2525,7 +2525,7 @@ function App() {
             </div>
             <div className="quick-add-field">
               <label className="quick-add-label">DUE</label>
-              <input type="date" value={quickDue} onChange={e => setQuickDue(e.target.value)} title="Due date" />
+              <input type="date" {...(quickDue ? {value: quickDue} : {})} onChange={e => setQuickDue(e.target.value)} onClick={e => { try { e.target.showPicker?.(); } catch(_){} }} title="Due date" />
             </div>
             <div className="quick-add-field">
               <label className="quick-add-label">PLANNED</label>
@@ -2780,7 +2780,7 @@ function App() {
                             </div>
                             <div style={{display: 'flex', gap: 8}}>
                               <label style={{fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-muted)'}}>TARGET DATE</label>
-                              <input type="date" value={editProjTarget} onChange={e => setEditProjTarget(e.target.value)} />
+                              <input type="date" {...(editProjTarget ? {value: editProjTarget} : {})} onChange={e => setEditProjTarget(e.target.value)} onClick={e => { try { e.target.showPicker?.(); } catch(_){} }} />
                             </div>
                             <textarea placeholder="Project notes..." value={editProjNotes}
                               onChange={e => setEditProjNotes(e.target.value)} rows={2}
@@ -3668,10 +3668,12 @@ function TaskCard({ task, data, editingTask, setEditingTask, toggleTaskDone, del
                   autoFocus={i === 0} />
               )}
               {f.type === 'date' && (
-                <input type="date" id={`edit-${task.id}-${f.key}`} value={pendingFields[f.key] ?? task[f.key] ?? ""}
-                  onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value || null}))}
-                  onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }} />
-              )}
+                 <input type="date" id={`edit-${task.id}-${f.key}`} 
+                   {...((pendingFields[f.key] ?? task[f.key]) ? {value: pendingFields[f.key] ?? task[f.key]} : {})}
+                   onChange={e => setPendingFields(prev => ({...prev, [f.key]: e.target.value || null}))}
+                   onClick={e => { try { e.target.showPicker?.(); } catch(_){} }}
+                   onKeyDown={e => { if (e.key === 'Tab') handleTabKey(e); }} />
+               )}
               {f.type === 'textarea' && (
                 <textarea id={`edit-${task.id}-${f.key}`} ref={notesRef}
                   value={pendingFields[f.key] ?? task[f.key] ?? ""}
